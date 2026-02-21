@@ -1,0 +1,71 @@
+.qodo
+.venv
+.vscode
+
+__pycache__
+media
+renders
+s1.svg(1).svg
+s1.svg (1).svg
+shape.avg
+
+shape1.svg
+shape2.svg
+shape3.svg
+shape4.svg
+shape5.svg
+shape6.svg
+shape7.svg
+shape8.svg
+shape8.svg
+shape9.svg
+
+donuts-cake.svg
+
+# Virtual environment
+.venv/
+venv/
+env/
+
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Build / distribution
+build/
+dist/
+*.egg-info/
+
+# Manim output
+media/
+renders/
+*.mp4
+*.png
+*.log
+
+# Temp / generated files
+studio_temp.py
+*_temp.py
+*.tmp
+
+# IDE
+.vscode/
+.idea/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Environment variables
+.env
+
+# Node (if frontend ever added)
+node_modules/
+
+# Pytest cache
+.pytest_cache/
+
+# Coverage
+.coverage
+htmlcov/
