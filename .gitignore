@@ -1,6 +1,7 @@
 .qodo
 .venv
 .vscode
+.git
 
 __pycache__
 media
