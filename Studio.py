@@ -10,21 +10,21 @@ from PySide6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout,
                              QGraphicsPixmapItem, QGraphicsItem, QCheckBox, QTabWidget,
                              QScrollArea, QToolButton, QSpinBox, QMenu, QGraphicsObject)
 from PySide6.QtCore import Qt, QThread, Signal, QRectF, QPointF, QSize, Property, QPropertyAnimation, QEasingCurve
-from PySide6.QtGui import QFont, QColor, QBrush, QPen, QPixmap, QDragEnterEvent, QDropEvent, QPainter, QLinearGradient, QAction
+from PySide6.QtGui import QFont, QColor, QBrush, QPen, QPixmap, QDragEnterEvent, QDropEvent, QPainter, QLinearGradient, QRadialGradient, QAction
 from PySide6.QtWidgets import QGraphicsDropShadowEffect
 from PySide6.QtSvg import QSvgRenderer
 
 from studio_core import StudioCore, PROJECT_ROOT
 
 # --- PROFESSIONAL DESIGN SYSTEM ---
-COLOR_BG_DARK = "#0e0f12"      
-COLOR_BG_LIGHT = "#16171a"     
-COLOR_PANEL = "#1c1e22"
+COLOR_BG_DARK = "#0b1220"      
+COLOR_BG_LIGHT = "#121a2a"     
+COLOR_PANEL = "rgba(20, 25, 35, 0.35)" # Liquid Glass Token
 COLOR_ACCENT = "#00d2ff"       
 COLOR_ACCENT_DIM = "rgba(0, 210, 255, 0.12)"
 COLOR_TEXT_PRIMARY = "#f5f5f7"
 COLOR_TEXT_SECONDARY = "#8b949e"
-COLOR_BORDER = "rgba(255, 255, 255, 0.05)"
+COLOR_BORDER = "rgba(255, 255, 255, 0.08)"
 COLOR_CANVAS = "#050507"
 
 FONT_MAIN = "Inter"
@@ -32,8 +32,9 @@ FONT_MONO = "JetBrains Mono"
 
 GRID_8 = 8  # Strict 8px spacing grid
 
-MANIM_WIDTH = 14.22222222  
+MANIM_WIDTH = 14.22
 MANIM_HEIGHT = 8.0
+CANVAS_SCALE = 56.25 # Pixel-to-Unit scale (450 / 8.0 = 56.25)
 
 class AnimatedButton(QPushButton):
     """A button with smooth hover scaling and depth effects."""
@@ -160,7 +161,7 @@ class CollapsibleSection(QWidget):
         self.content = QWidget()
         self.content.setVisible(False)
         self.content_layout = QVBoxLayout(self.content)
-        self.content_layout.setContentsMargins(16, 16, 16, 16) # Unified Internal Padding
+        self.content_layout.setContentsMargins(24, 24, 24, 24) # Professional Breathability
         self.content_layout.setSpacing(12) # Consistent Vertical Rhythm
         
         self.main_layout.addWidget(self.toggle_btn)
@@ -192,8 +193,8 @@ class StartHandle(QGraphicsRectItem):
     def itemChange(self, change, value):
         if change == QGraphicsItem.ItemPositionChange:
             # Update INITIAL state position
-            manim_x = round((value.x() / 400.0) * (MANIM_WIDTH / 2.0), 2)
-            manim_y = round((-value.y() / 225.0) * (MANIM_HEIGHT / 2.0), 2)
+            manim_x = round((value.x() / CANVAS_SCALE) + self.main_item.asset["final_state"]["x"], 2)
+            manim_y = round((-value.y() / CANVAS_SCALE) + self.main_item.asset["final_state"]["y"], 2)
             self.main_item.asset["initial_state"]["x"] = manim_x
             self.main_item.asset["initial_state"]["y"] = manim_y
             self.main_item.app.update_ui_from_asset()
@@ -205,9 +206,12 @@ class StartHandle(QGraphicsRectItem):
         # Hide entirely in cinematic preview OR if not in Motion mode
         is_preview = self.main_item.app.canvas.preview_mode
         active_tab = self.main_item.app.get_active_inspector_section()
-        if is_preview or active_tab != "MOTION":
-            return
-        super().paint(painter, option, widget)
+        if is_preview or active_tab != "MOTION": return
+        
+        # Draw pivot point
+        painter.setBrush(QColor(COLOR_ACCENT))
+        painter.setPen(Qt.NoPen)
+        painter.drawEllipse(-3, -3, 6, 6)
 
 class DraggableSVGItem(QGraphicsObject):
     """A visual representation of an SVG asset on the canvas."""
@@ -255,9 +259,8 @@ class DraggableSVGItem(QGraphicsObject):
         self.update_appearance()
 
     def boundingRect(self):
-        # SIMPLIFIED: Static bounding box with generous padding to prevent 
-        # recursion/crash during early init.
-        return self._rect.adjusted(-50, -50, 50, 50)
+        # Precise bounding box based on viewBox aspect ratio
+        return self._rect.adjusted(-2, -2, 2, 2)
 
     def update_pen(self):
         color = QColor(COLOR_ACCENT) if self.isSelected() else QColor(COLOR_BORDER)
@@ -274,14 +277,14 @@ class DraggableSVGItem(QGraphicsObject):
             self.setScale(final["scale"])
             self.setRotation(final["rotation"])
             
-            px = (final["x"] / (MANIM_WIDTH / 2.0)) * 400.0
-            py = (-final["y"] / (MANIM_HEIGHT / 2.0)) * 225.0
+            px = final["x"] * CANVAS_SCALE
+            py = -final["y"] * CANVAS_SCALE
             self.setPos(px, py)
             
             # Initial State is the handle position (offset from item center)
             initial = self.asset["initial_state"]
-            sx = (initial["x"] / (MANIM_WIDTH / 2.0)) * 400.0 - px
-            sy = (-initial["y"] / (MANIM_HEIGHT / 2.0)) * 225.0 - py
+            sx = initial["x"] * CANVAS_SCALE - px
+            sy = -initial["y"] * CANVAS_SCALE - py
             self.handle.setPos(sx, sy)
         finally:
             self._block_recursion = False
@@ -325,23 +328,40 @@ class DraggableSVGItem(QGraphicsObject):
         is_preview = self.app.canvas.preview_mode
         active_mode = self.app.get_active_inspector_section()
         is_selected = self.isSelected()
-        
-        # Mode Logic
-        mode_motion = (active_mode == "MOTION") and is_selected and not is_preview
-        mode_transform = (active_mode == "TRANSFORM") and is_selected and not is_preview
+        if is_preview:
+            # Cinematic Mode: Body Only
+            scrubber_t = self.app.timeline.value() / 1000.0
+            state = self.get_interpolated_state(scrubber_t)
+            
+            # Manim Units -> Pixel Mapping
+            tx = state["x"] * CANVAS_SCALE
+            ty = -state["y"] * CANVAS_SCALE
+            
+            painter.save()
+            painter.translate(tx, ty)
+            painter.rotate(state["rotation"])
+            painter.scale(state["scale"], state["scale"])
+            painter.setOpacity(state["opacity"])
+            self.renderer.render(painter, self._rect)
+            painter.restore()
+            return
+
+        # Technical Editor Logic
+        mode_motion = (active_mode == "MOTION") and is_selected
+        mode_transform = (active_mode == "TRANSFORM") and is_selected
         
         # 2. Interpolated State for Main Body
         scrubber_t = self.app.timeline.value() / 1000.0
         state = self.get_interpolated_state(scrubber_t)
         
         # Manim Units -> Pixel Mapping
-        tx = (state["x"] / (MANIM_WIDTH / 2.0)) * 400.0
-        ty = (-state["y"] / (MANIM_HEIGHT / 2.0)) * 225.0
+        tx = state["x"] * CANVAS_SCALE
+        ty = -state["y"] * CANVAS_SCALE
         
         # Base Position (the item's actual pos() in the scene)
         final = self.asset["final_state"]
-        fx = (final["x"] / (MANIM_WIDTH / 2.0)) * 400.0
-        fy = (-final["y"] / (MANIM_HEIGHT / 2.0)) * 225.0
+        fx = final["x"] * CANVAS_SCALE
+        fy = -final["y"] * CANVAS_SCALE
         
         # Save Painter for Body
         painter.save()
@@ -371,10 +391,10 @@ class DraggableSVGItem(QGraphicsObject):
             final = self.asset["final_state"]
             
             # Pixel coords
-            isx = (init["x"] / (MANIM_WIDTH / 2.0)) * 400.0
-            isy = (-init["y"] / (MANIM_HEIGHT / 2.0)) * 225.0
-            fsx = (final["x"] / (MANIM_WIDTH / 2.0)) * 400.0
-            fsy = (-final["y"] / (MANIM_HEIGHT / 2.0)) * 225.0
+            isx = init["x"] * CANVAS_SCALE
+            isy = -init["y"] * CANVAS_SCALE
+            fsx = final["x"] * CANVAS_SCALE
+            fsy = -final["y"] * CANVAS_SCALE
             
             # Path Logic (Dashed line with arrow)
             gradient = QLinearGradient(isx, isy, fsx, fsy)
@@ -403,8 +423,8 @@ class DraggableSVGItem(QGraphicsObject):
             for i in range(1, 6):
                 t = i / 6.0
                 g_state = self.get_interpolated_state(t)
-                gx = (g_state["x"] / (MANIM_WIDTH / 2.0)) * 400.0
-                gy = (-g_state["y"] / (MANIM_HEIGHT / 2.0)) * 225.0
+                gx = g_state["x"] * CANVAS_SCALE
+                gy = -g_state["y"] * CANVAS_SCALE
                 
                 painter.save()
                 painter.translate(gx, gy)
@@ -438,8 +458,9 @@ class StudioCanvas(QGraphicsView):
         self.setAcceptDrops(True)
         self.setScene(QGraphicsScene(self))
         
-        # Lock Scene to Manim 16:9 Ratio
-        self.scene().setSceneRect(-400, -225, 800, 450)
+        # Lock Scene to Exact Manim Aspect Ratio (Pixel Parity)
+        # 1.0 Manim unit = 56.25 pixels
+        self.scene().setSceneRect(-399.9375, -225, 799.875, 450)
         
         # Viewport Architecture: Cinematic Mode
         self.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
@@ -460,7 +481,23 @@ class StudioCanvas(QGraphicsView):
         
         self.mode_badge = ModeIndicator(self)
         
+        # Ambient Ambient Animation
+        self._bg_phase = 0.0
+        self._bg_anim = QPropertyAnimation(self, b"bg_phase")
+        self._bg_anim.setDuration(12000)
+        self._bg_anim.setStartValue(0.0)
+        self._bg_anim.setEndValue(360.0)
+        self._bg_anim.setLoopCount(-1)
+        self._bg_anim.start()
+        
         self.setup_vignette()
+
+    @Property(float)
+    def bg_phase(self): return self._bg_phase
+    @bg_phase.setter
+    def bg_phase(self, v):
+        self._bg_phase = v
+        self.viewport().update()
 
     def resizeEvent(self, event):
         super().resizeEvent(event)
@@ -468,14 +505,13 @@ class StudioCanvas(QGraphicsView):
 
     def setup_vignette(self):
         # Vignette Overlay (Matches Stage exactly)
-        self.vignette = QGraphicsRectItem(-400, -225, 800, 450)
+        self.vignette = QGraphicsRectItem(-399.9375, -225, 799.875, 450)
         self.vignette.setZValue(1000)
         self.vignette.setFlag(QGraphicsItem.ItemHasNoContents, False)
         self.update_vignette()
         self.scene().addItem(self.vignette)
 
     def update_vignette(self):
-        from PySide6.QtGui import QRadialGradient
         radial = QRadialGradient(0, 0, 500)
         radial.setColorAt(0, QColor(0, 0, 0, 0))
         radial.setColorAt(1, QColor(0, 0, 0, 80))
@@ -484,10 +520,47 @@ class StudioCanvas(QGraphicsView):
         self.vignette.setOpacity(0.4)
 
     def drawBackground(self, painter, rect):
-        # Full viewport background match
-        bg_color = QColor(self.app.bg_combo.currentText()) if hasattr(self, "app") else QColor(COLOR_CANVAS)
-        painter.fillRect(rect, bg_color)
+        # 1. Base Deep Background
+        painter.fillRect(rect, QColor(COLOR_BG_DARK))
         
+        # 2. Layered Ambient Atmospheric Gradients
+        painter.setRenderHint(QPainter.Antialiasing)
+        
+        # Slow Oscillations for Organic Movement
+        p1 = self._bg_phase
+        p2 = self._bg_phase * 0.7 + 45
+        p3 = self._bg_phase * 0.4 + 90
+        
+        # Layer A: Deep Indigo (Moving Center)
+        painter.save()
+        ix = math.sin(math.radians(p1)) * 150
+        iy = math.cos(math.radians(p1)) * 100
+        ind_grad = QRadialGradient(ix, iy, 1000)
+        ind_grad.setColorAt(0, QColor(20, 30, 80, 40))
+        ind_grad.setColorAt(1, Qt.transparent)
+        painter.fillRect(rect, QBrush(ind_grad))
+        painter.restore()
+        
+        # Layer B: Subtle Purple (Moving Opposite)
+        painter.save()
+        px = math.cos(math.radians(p2)) * 200
+        py = math.sin(math.radians(p2)) * 120
+        purp_grad = QRadialGradient(px, py, 900)
+        purp_grad.setColorAt(0, QColor(80, 20, 100, 30))
+        purp_grad.setColorAt(1, Qt.transparent)
+        painter.fillRect(rect, QBrush(purp_grad))
+        painter.restore()
+        
+        # Layer C: Top-Left Soft Glow (Cyan Accent)
+        painter.save()
+        cx = -300 + math.sin(math.radians(p3)) * 50
+        cy = -200 + math.cos(math.radians(p3)) * 40
+        cyan_grad = QRadialGradient(cx, cy, 600)
+        cyan_grad.setColorAt(0, QColor(0, 210, 255, 25))
+        cyan_grad.setColorAt(1, Qt.transparent)
+        painter.fillRect(rect, QBrush(cyan_grad))
+        painter.restore()
+
         if self.show_grid and not self.preview_mode:
             painter.setPen(QPen(QColor(255, 255, 255, int(self.grid_opacity * 255)), 0.5))
             grid_size = 50
@@ -500,14 +573,14 @@ class StudioCanvas(QGraphicsView):
         # Stage Frame (Ultra subtle neutral)
         if not self.preview_mode:
             painter.setPen(QPen(QColor(255, 255, 255, 30), 1.0))
-            painter.drawRect(-400, -225, 800, 450)
+            painter.drawRect(-399.9375, -225, 799.875, 450)
 
     def drawForeground(self, painter, rect):
         # Cinematic Dimming outside Stage Area
         painter.save()
         from PySide6.QtGui import QRegion
         full_rect = rect.toRect()
-        stage_rect = QRectF(-400, -225, 800, 450).toRect()
+        stage_rect = QRectF(-399.9375, -225, 799.875, 450).toRect()
         
         dim_region = QRegion(full_rect) - QRegion(stage_rect)
         painter.setClipRegion(dim_region)
@@ -519,8 +592,8 @@ class StudioCanvas(QGraphicsView):
         pass
 
     def fit_to_stage(self):
-        # Ensure perfect 16:9 alignment with letterboxing
-        self.fitInView(QRectF(-400, -225, 800, 450), Qt.KeepAspectRatio)
+        # Ensure perfect alignment with letterboxing
+        self.fitInView(QRectF(-399.9375, -225, 799.875, 450), Qt.KeepAspectRatio)
         if hasattr(self, "app"):
             scale_val = int(self.transform().m11() * 100)
             self.app.zoom_lbl.setText(f"{scale_val}%")
@@ -554,7 +627,7 @@ class RenderThread(QThread):
 class SVGStudioWYSIWYG(QMainWindow):
     def __init__(self):
         super().__init__()
-        self.setWindowTitle("SVG STUDIO PRO - KINETIC ORCHESTRATOR")
+        self.setWindowTitle("MorphStudio – Vector Motion Engine")
         self.resize(1500, 950)
         
         # 1. CORE STATE INITIALIZATION (Must happen before UI)
@@ -566,7 +639,8 @@ class SVGStudioWYSIWYG(QMainWindow):
         self.animation_offset = 0
         
         # 2. UI SETUP
-        app_font = QFont(FONT_MAIN, 10)
+        app_font = QFont(FONT_MAIN, 11)
+        app_font.setHintingPreference(QFont.PreferVerticalHinting)
         self.setFont(app_font)
         
         self.setup_ui()
@@ -603,12 +677,19 @@ class SVGStudioWYSIWYG(QMainWindow):
         self.top_layout.setContentsMargins(GRID_8*2, GRID_8*2, GRID_8*2, GRID_8*2)
         self.top_layout.setSpacing(GRID_8*2)
         
-        # --- 1. BRANDING BAR ---
+        # --- BRAND BAR ---
         self.brand_bar = QFrame()
-        self.brand_bar.setFixedHeight(50)
-        self.brand_layout = QHBoxLayout(self.brand_bar)
-        self.brand_layout.setContentsMargins(GRID_8, 0, GRID_8, 0)
-        self.brand_layout.setSpacing(GRID_8*1.5)
+        self.brand_bar.setFixedHeight(64)
+        self.brand_bar.setObjectName("BrandBar")
+        self.brand_bar.setStyleSheet(f"""
+            #BrandBar {{ 
+                background: rgba(255, 255, 255, 0.03); 
+                border-bottom: 1px solid {COLOR_BORDER}; 
+            }}
+        """)
+        bb_layout = QHBoxLayout(self.brand_bar)
+        bb_layout.setContentsMargins(GRID_8*3, 0, GRID_8*3, 0)
+        bb_layout.setSpacing(GRID_8*1.5)
         
         # Modern Morphing Symbol (Icon)
         self.brand_icon = QLabel("◈") # Modern glyph
@@ -839,8 +920,8 @@ class SVGStudioWYSIWYG(QMainWindow):
         self.insp_scroll.setFrameShape(QFrame.NoFrame)
         self.insp_content = QWidget()
         self.inspector_layout = QVBoxLayout(self.insp_content)
-        self.inspector_layout.setContentsMargins(GRID_8*2, GRID_8*2, GRID_8*2, GRID_8*2)
-        self.inspector_layout.setSpacing(GRID_8*2)
+        self.inspector_layout.setContentsMargins(0, 0, 0, 0) # Sections handle their own internal margins
+        self.inspector_layout.setSpacing(0)
         self.insp_scroll.setWidget(self.insp_content)
         self.insp_layout.addWidget(self.insp_scroll)
         
@@ -854,12 +935,21 @@ class SVGStudioWYSIWYG(QMainWindow):
         
         # Smart Tools
         tool_group = QGroupBox("SMART TOOLS")
-        tool_layout = QHBoxLayout(tool_group)
-        btn_center = QPushButton("🎯 CENTER")
-        btn_center.setMinimumHeight(28)
+        tool_layout = QVBoxLayout(tool_group)
+        tool_layout.setContentsMargins(GRID_8, GRID_8, GRID_8, GRID_8)
+        tool_layout.setSpacing(GRID_8)
+        
+        btn_center = QPushButton("🎯 CENTER TO STAGE")
+        btn_center.setMinimumHeight(32)
         btn_center.clicked.connect(self.center_selected)
         tool_layout.addWidget(btn_center)
-        self.trans_form.addRow(tool_group) # Add smart tools to transform section
+        
+        btn_distribute = QPushButton("↔️ DISTRIBUTE HORIZONTALLY")
+        btn_distribute.setMinimumHeight(32)
+        btn_distribute.clicked.connect(self.distribute_selected)
+        tool_layout.addWidget(btn_distribute)
+        
+        self.trans_form.addRow(tool_group) 
         
         self.trans_section.addLayout(self.trans_form)
         
@@ -962,18 +1052,21 @@ class SVGStudioWYSIWYG(QMainWindow):
             
             #Sidebar, #Inspector {{ 
                 background: {COLOR_PANEL}; 
-                border-right: 1px solid {COLOR_BORDER}; 
+                border: 1px solid {COLOR_BORDER};
+                border-radius: 14px;
+                margin: {GRID_8}px;
             }}
-            #Inspector {{ border-right: none; border-left: 1px solid {COLOR_BORDER}; }}
+            
+            #BrandBar {{ border-bottom: 1px solid {COLOR_BORDER}; }}
             
             #StageBox {{ 
-                background: {COLOR_BG_DARK}; 
+                background: rgba(0, 0, 0, 0.2); 
                 border: 1px solid {COLOR_BORDER}; 
-                border-radius: 8px; 
+                border-radius: 12px; 
             }}
             
             #TimelineContainer {{
-                background: {COLOR_PANEL};
+                background: rgba(255, 255, 255, 0.05);
                 border: 1px solid {COLOR_BORDER};
                 border-radius: 20px;
                 height: 40px;
@@ -983,15 +1076,15 @@ class SVGStudioWYSIWYG(QMainWindow):
                          border: none; margin-top: {GRID_8*2}px; padding-top: {GRID_8}px; }}
             
             QPushButton {{ 
-                background-color: {COLOR_BG_LIGHT}; 
+                background-color: rgba(255, 255, 255, 0.05); 
                 border: 1px solid {COLOR_BORDER}; 
-                border-radius: 4px; 
+                border-radius: 6px; 
                 padding: {GRID_8}px {GRID_8*2}px; 
                 font-weight: 600; 
                 color: {COLOR_TEXT_PRIMARY}; 
             }}
             QPushButton:hover {{ 
-                background-color: {COLOR_PANEL}; 
+                background-color: rgba(255, 255, 255, 0.1); 
                 border-color: {COLOR_ACCENT}; 
             }}
             
@@ -1002,20 +1095,22 @@ class SVGStudioWYSIWYG(QMainWindow):
                 padding: {GRID_8*1.5}px;
                 font-size: 12px;
                 letter-spacing: 0.5px;
+                border-radius: 6px;
             }}
             #RenderButton:hover {{ background: #ffffff; }}
             
             QListWidget {{ background: transparent; border: none; }}
             QListWidget::item {{ 
                 padding: {GRID_8}px; 
-                border-radius: 4px; 
-                margin-bottom: 2px;
+                border-radius: 6px; 
+                margin-bottom: 4px;
                 color: {COLOR_TEXT_SECONDARY};
+                background: rgba(255, 255, 255, 0.02);
             }}
-            QListWidget::item:hover {{ background: rgba(255, 255, 255, 0.03); }}
+            QListWidget::item:hover {{ background: rgba(255, 255, 255, 0.05); }}
             QListWidget::item:selected {{ background: {COLOR_ACCENT_DIM}; color: {COLOR_ACCENT}; font-weight: 600; }}
             
-            QComboBox {{ background: {COLOR_BG_LIGHT}; border: 1px solid {COLOR_BORDER}; border-radius: 4px; padding: 4px {GRID_8}px; }}
+            QComboBox {{ background: rgba(255, 255, 255, 0.05); border: 1px solid {COLOR_BORDER}; border-radius: 6px; padding: 4px {GRID_8}px; }}
             
             QSlider::groove:horizontal {{ height: 2px; background: {COLOR_BORDER}; }}
             QSlider::handle:horizontal {{ background: {COLOR_ACCENT}; width: 12px; height: 12px; margin: -5px 0; border-radius: 6px; }}
@@ -1026,9 +1121,9 @@ class SVGStudioWYSIWYG(QMainWindow):
             QScrollBar:vertical {{ border: none; background: transparent; width: 4px; }}
             QScrollBar::handle:vertical {{ background: {COLOR_BORDER}; border-radius: 2px; }}
             
-            QTextEdit {{ background: {COLOR_BG_DARK}; border: 1px solid {COLOR_BORDER}; border-radius: 4px; color: {COLOR_TEXT_SECONDARY}; padding: {GRID_8}px; }}
+            QTextEdit {{ background: rgba(0, 0, 0, 0.2); border: 1px solid {COLOR_BORDER}; border-radius: 8px; color: {COLOR_TEXT_SECONDARY}; padding: {GRID_8}px; }}
             
-            QTabWidget::pane {{ border-top: 1px solid {COLOR_BORDER}; background: {COLOR_PANEL}; }}
+            QTabWidget::pane {{ border-top: 1px solid {COLOR_BORDER}; background: {COLOR_PANEL}; border-radius: 14px; margin: 0 {GRID_8}px; }}
             QTabBar::tab {{ background: transparent; padding: {GRID_8}px {GRID_8*2}px; color: {COLOR_TEXT_SECONDARY}; font-weight: 600; font-size: 10px; }}
             QTabBar::tab:selected {{ color: {COLOR_ACCENT}; border-bottom: 2px solid {COLOR_ACCENT}; }}
         """)
@@ -1206,7 +1301,7 @@ class SVGStudioWYSIWYG(QMainWindow):
         asset = {
             "name": Path(file_path).name, "path": file_path.replace("\\", "/"),
             "initial_state": {
-                "x": -3.0, "y": 0.0, "scale": 1.0, "rotation": 0, "opacity": 1.0, "svg": file_path.replace("\\", "/")
+                "x": 0.0, "y": 0.0, "scale": 1.0, "rotation": 0, "opacity": 1.0, "svg": file_path.replace("\\", "/")
             },
             "final_state": {
                 "x": 0.0, "y": 0.0, "scale": 1.0, "rotation": 0, "opacity": 1.0, "svg": file_path.replace("\\", "/")
@@ -1268,8 +1363,32 @@ class SVGStudioWYSIWYG(QMainWindow):
         asset = self.assets[self.selected_index]
         asset["final_state"]["x"] = 0.0
         asset["final_state"]["y"] = 0.0
+        asset["initial_state"]["x"] = 0.0
+        asset["initial_state"]["y"] = 0.0
         self.canvas_items[self.selected_index].update_appearance()
         self.update_code()
+
+    def distribute_selected(self):
+        if not self.assets: return
+        count = len(self.assets)
+        if count < 2: 
+            self.center_selected()
+            return
+        
+        # Distribute horizontally across roughly 70% of stage width
+        total_span = 8.0 # Stage is ~14.22 wide
+        start_x = -total_span / 2
+        step = total_span / (count - 1)
+        
+        for i, asset in enumerate(self.assets):
+            asset["final_state"]["x"] = start_x + (i * step)
+            asset["final_state"]["y"] = 0.0
+            asset["initial_state"]["x"] = asset["final_state"]["x"]
+            asset["initial_state"]["y"] = 0.0
+            self.canvas_items[i].update_appearance()
+        
+        self.update_code()
+        self.console.append(f">>> Distributed {count} assets horizontally.")
 
     def clear_canvas(self):
         self.assets = []
