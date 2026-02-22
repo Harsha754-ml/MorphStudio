@@ -575,6 +575,7 @@ class SVGStudioWYSIWYG(QMainWindow):
         self.canvas_items = [] 
         self.selected_index = -1
         self.initializing = True 
+        self._block_recursion = False
         self.animation_offset = 0
         
         self.setup_ui()
