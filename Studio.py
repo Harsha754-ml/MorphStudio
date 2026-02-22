@@ -581,37 +581,61 @@ class SVGStudioWYSIWYG(QMainWindow):
         self.apply_styles()
         self.initializing = False
         
-        # --- RANDOMIZED STARTUP ANIMATIONS ---
+        # --- ENHANCED RANDOMIZED STARTUP ANIMATIONS ---
         import random
-        anim_type = random.choice(["BLOOM", "SLIDE", "BOUNCE"])
+        anim_type = random.choice(["BLOOM", "SLIDE", "BOUNCE", "GLITCH", "ZOOM", "SWIPE"])
         
         self.setWindowOpacity(0.0)
         self._bloom = QPropertyAnimation(self, b"windowOpacity")
-        self._bloom.setDuration(1000)
+        self._bloom.setDuration(1200)
         self._bloom.setStartValue(0.0)
         self._bloom.setEndValue(1.0)
         self._bloom.setEasingCurve(QEasingCurve.OutCubic)
         self._bloom.start()
         
+        cw = self.centralWidget()
+        self._central_anim = QPropertyAnimation(cw, b"pos")
+        start_pos = cw.pos()
+        
         if anim_type == "SLIDE":
-            self.central_anim = QPropertyAnimation(self.centralWidget(), b"pos")
-            start_pos = self.centralWidget().pos()
-            self.centralWidget().move(start_pos.x(), start_pos.y() + 50)
-            self.central_anim.setDuration(800)
-            self.central_anim.setStartValue(QPointF(start_pos.x(), start_pos.y() + 50))
-            self.central_anim.setEndValue(start_pos)
-            self.central_anim.setEasingCurve(QEasingCurve.OutExpo)
-            self.central_anim.start()
+            cw.move(start_pos.x(), start_pos.y() + 100)
+            self._central_anim.setDuration(1000)
+            self._central_anim.setStartValue(QPointF(start_pos.x(), start_pos.y() + 100))
+            self._central_anim.setEndValue(start_pos)
+            self._central_anim.setEasingCurve(QEasingCurve.OutExpo)
+            self._central_anim.start()
         elif anim_type == "BOUNCE":
-            self.central_anim = QPropertyAnimation(self.centralWidget(), b"pos")
-            start_pos = self.centralWidget().pos()
-            self.centralWidget().move(start_pos.x(), start_pos.y() - 100)
-            self.central_anim.setDuration(1200)
-            self.central_anim.setStartValue(QPointF(start_pos.x(), start_pos.y() - 100))
-            self.central_anim.setEndValue(start_pos)
-            self.central_anim.setEasingCurve(QEasingCurve.OutBounce)
-            self.central_anim.start()
-        # Default BLOOM is just the opacity
+            cw.move(start_pos.x(), start_pos.y() - 150)
+            self._central_anim.setDuration(1400)
+            self._central_anim.setStartValue(QPointF(start_pos.x(), start_pos.y() - 150))
+            self._central_anim.setEndValue(start_pos)
+            self._central_anim.setEasingCurve(QEasingCurve.OutBounce)
+            self._central_anim.start()
+        elif anim_type == "GLITCH":
+            # Quick flicker effect on window opacity
+            self._bloom.setDuration(400)
+            self._bloom.setKeyValueAt(0.2, 0.8)
+            self._bloom.setKeyValueAt(0.4, 0.2)
+            self._bloom.setKeyValueAt(0.6, 0.9)
+            self._bloom.setKeyValueAt(0.8, 0.4)
+            self._bloom.start()
+        elif anim_type == "ZOOM":
+            self._central_anim.setPropertyName(b"geometry")
+            rect = cw.geometry()
+            small_rect = QRectF(rect.x() + rect.width()/4, rect.y() + rect.height()/4, rect.width()/2, rect.height()/2).toRect()
+            cw.setGeometry(small_rect)
+            self._central_anim.setDuration(900)
+            self._central_anim.setStartValue(small_rect)
+            self._central_anim.setEndValue(rect)
+            self._central_anim.setEasingCurve(QEasingCurve.OutBack)
+            self._central_anim.start()
+        elif anim_type == "SWIPE":
+            cw.move(start_pos.x() - 200, start_pos.y())
+            self._central_anim.setDuration(1000)
+            self._central_anim.setStartValue(QPointF(start_pos.x() - 200, start_pos.y()))
+            self._central_anim.setEndValue(start_pos)
+            self._central_anim.setEasingCurve(QEasingCurve.OutQuint)
+            self._central_anim.start()
         
         # Animation loop for path dash offset
         from PySide6.QtCore import QTimer
@@ -981,17 +1005,39 @@ class SVGStudioWYSIWYG(QMainWindow):
                     break
 
     def on_canvas_item_moved(self, item, pos):
-        manim_x = round((pos.x() / 400.0) * (MANIM_WIDTH / 2.0), 2)
-        manim_y = round((-pos.y() / 225.0) * (MANIM_HEIGHT / 2.0), 2)
+        if self._block_recursion: return
+        self._block_recursion = True # Temporary block inside class if needed, but here we use the item's flag
+        
+        new_manim_x = round((pos.x() / 400.0) * (MANIM_WIDTH / 2.0), 2)
+        new_manim_y = round((-pos.y() / 225.0) * (MANIM_HEIGHT / 2.0), 2)
+        
         try:
             idx = self.canvas_items.index(item)
-            # Update FINAL state (base position)
-            self.assets[idx]["final_state"]["x"] = manim_x
-            self.assets[idx]["final_state"]["y"] = manim_y
+            asset = self.assets[idx]
+            
+            # Calculate Delta
+            old_final = asset["final_state"]
+            dx = new_manim_x - old_final["x"]
+            dy = new_manim_y - old_final["y"]
+            
+            # Move BOTH Initial and Final states together (Whole-Path Movement)
+            asset["initial_state"]["x"] += dx
+            asset["initial_state"]["y"] += dy
+            asset["final_state"]["x"] = new_manim_x
+            asset["final_state"]["y"] = new_manim_y
+            
             self.update_code()
             item.update()
-            item.update_appearance() # Use update_appearance to redraw handles
+            # We don't call update_appearance here to avoid fighting the mouse drag pos
+            # but we do need to update the handle position relative to the item
+            initial = asset["initial_state"]
+            sx = (initial["x"] / (MANIM_WIDTH / 2.0)) * 400.0 - pos.x()
+            sy = (-initial["y"] / (MANIM_HEIGHT / 2.0)) * 225.0 - pos.y()
+            item.handle.setPos(sx, sy)
+            
         except (ValueError, KeyError): pass
+        finally:
+            self._block_recursion = False # If we had a class-level block
 
     def update_ui_from_asset(self):
         if self.selected_index < 0: return
