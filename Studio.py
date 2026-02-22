@@ -16,19 +16,19 @@ from PySide6.QtSvg import QSvgRenderer
 
 from studio_core import StudioCore, PROJECT_ROOT
 
-# --- PREMIUM DESIGN TOKENS ---
-COLOR_BG_DARK = "#0a0a0c"      
-COLOR_BG_LIGHT = "#121216"     
-COLOR_SURFACE = "#1c1c21"
-COLOR_ACCENT = "#00f2ff"       
-COLOR_ACCENT_DIM = "rgba(0, 242, 255, 0.2)"
+# --- PREMIUM DESIGN COLOR SYSTEM - LIQUID GLASS
+COLOR_BG_DARK = "#0a0b10"
+COLOR_BG_LIGHT = "rgba(25, 27, 35, 0.7)"
+COLOR_SURFACE = "rgba(45, 48, 60, 0.4)"
+COLOR_GLASS = "rgba(30, 32, 45, 0.5)"
+COLOR_ACCENT = "#00d2ff"             # Electric Cyan
+COLOR_ACCENT_DIM = "rgba(0, 210, 255, 0.15)"
+COLOR_BORDER = "rgba(255, 255, 255, 0.1)"
 COLOR_TEXT_PRIMARY = "#ffffff"
-COLOR_TEXT_SECONDARY = "#8b949e"
-COLOR_BORDER = "rgba(255, 255, 255, 0.08)"
-COLOR_CANVAS = "#050507"
-COLOR_GLASS = "rgba(20, 20, 25, 0.7)"
+COLOR_TEXT_SECONDARY = "#a1b0b8"
+COLOR_CANVAS = "#050507" # Kept from original, as it's not redefined in the new block
 
-FONT_MAIN = "Inter"
+FONT_MAIN = "Inter" # FALLBACK: System Sans-Serif
 FONT_MONO = "JetBrains Mono"
 
 MANIM_WIDTH = 14.22222222  
@@ -602,23 +602,34 @@ class SVGStudioWYSIWYG(QMainWindow):
             self.canvas_items[self.selected_index].update()
 
     def setup_ui(self):
-        central = QWidget()
-        self.setCentralWidget(central)
-        layout = QHBoxLayout(central)
-        layout.setContentsMargins(24, 24, 24, 24)
-        layout.setSpacing(16)
-
-        # 1. Left Sidebar
-        self.sidebar = QFrame()
-        self.sidebar.setFixedWidth(300)
-        self.sidebar.setObjectName("Sidebar")
-        side_layout = QVBoxLayout(self.sidebar)
-        side_layout.setContentsMargins(16, 16, 16, 16)
-        side_layout.setSpacing(16)
+        self.central_widget = QWidget()
+        self.setCentralWidget(self.central_widget)
+        self.main_layout = QHBoxLayout(self.central_widget)
+        self.main_layout.setContentsMargins(15, 15, 15, 15)
+        self.main_layout.setSpacing(15)
         
-        lbl_layers = QLabel("LAYERS")
-        lbl_layers.setStyleSheet(f"color: {COLOR_ACCENT}; font-size: 11px; font-weight: bold; letter-spacing: 1px;")
-        side_layout.addWidget(lbl_layers)
+        # --- LEFT SIDEBAR (Assets & Layers) ---
+        self.sidebar = QFrame()
+        self.sidebar.setObjectName("Sidebar")
+        self.sidebar.setFixedWidth(300)
+        self.sidebar_layout = QVBoxLayout(self.sidebar)
+        self.sidebar_layout.setContentsMargins(15, 10, 15, 15)
+        self.sidebar_layout.setSpacing(15)
+        
+        # LOGO INTEGRATION
+        self.logo_label = QLabel()
+        logo_pix = QPixmap("Logo.png")
+        if not logo_pix.isNull():
+            self.logo_label.setPixmap(logo_pix.scaled(180, 50, Qt.KeepAspectRatio, Qt.SmoothTransformation))
+        else:
+            self.logo_label.setText("MORPH STUDIO")
+            self.logo_label.setStyleSheet(f"color: {COLOR_ACCENT}; font-weight: bold; font-size: 18px;")
+        self.logo_label.setAlignment(Qt.AlignCenter)
+        self.sidebar_layout.addWidget(self.logo_label)
+        
+        # lbl_layers = QLabel("LAYERS") # This label is removed as per the new structure
+        # lbl_layers.setStyleSheet(f"color: {COLOR_ACCENT}; font-size: 11px; font-weight: bold; letter-spacing: 1px;")
+        # self.sidebar_layout.addWidget(lbl_layers) # This widget is removed
         
         self.layer_list = QListWidget()
         self.layer_list.itemClicked.connect(self.select_by_index)
@@ -892,32 +903,57 @@ class SVGStudioWYSIWYG(QMainWindow):
 
     def apply_styles(self):
         self.setStyleSheet(f"""
-            QMainWindow {{ background-color: #111216; }}
-            QWidget {{ color: {COLOR_TEXT_PRIMARY}; font-family: {FONT_MAIN}; font-size: 13px; }}
+            QMainWindow {{ background-color: {COLOR_BG_DARK}; }}
+            QWidget {{ color: {COLOR_TEXT_PRIMARY}; font-family: '{FONT_MAIN}', sans-serif; font-size: 13px; }}
             
-            #MainTabs::pane {{ border: 1px solid #2c2e33; background: #1a1b1e; border-radius: 6px; top: -1px; }}
-            QTabBar::tab {{ background: transparent; padding: 10px 16px; color: {COLOR_TEXT_SECONDARY}; font-weight: bold; }}
+            #Sidebar, #Inspector {{ 
+                background: {COLOR_GLASS}; 
+                border: 1px solid {COLOR_BORDER}; 
+                border-radius: 12px;
+            }}
+            
+            #MainTabs::pane {{ border: 1px solid {COLOR_BORDER}; background: {COLOR_GLASS}; border-radius: 12px; top: -1px; }}
+            QTabBar::tab {{ background: transparent; padding: 12px 20px; color: {COLOR_TEXT_SECONDARY}; font-weight: bold; }}
             QTabBar::tab:selected {{ color: {COLOR_ACCENT}; border-bottom: 2px solid {COLOR_ACCENT}; }}
             
             QGroupBox {{ font-weight: bold; font-size: 11px; color: {COLOR_ACCENT}; 
-                         border: 1px solid #2c2e33; border-radius: 6px; margin-top: 15px; padding-top: 20px; background: #1a1b1e; }}
+                         border: 1px solid {COLOR_BORDER}; border-radius: 10px; margin-top: 20px; padding-top: 25px; 
+                         background: rgba(255, 255, 255, 0.03); }}
             
-            QPushButton {{ background-color: #21222d; border: 1px solid #2c2e33; border-radius: 4px; padding: 8px; font-weight: bold; color: {COLOR_TEXT_PRIMARY}; }}
-            QPushButton:hover {{ background-color: #2c2e33; border-color: {COLOR_ACCENT}; }}
+            QPushButton {{ 
+                background-color: rgba(255, 255, 255, 0.05); 
+                border: 1px solid {COLOR_BORDER}; 
+                border-radius: 8px; 
+                padding: 10px; 
+                font-weight: bold; 
+                color: {COLOR_TEXT_PRIMARY}; 
+            }}
+            QPushButton:hover {{ 
+                background-color: rgba(255, 255, 255, 0.1); 
+                border-color: {COLOR_ACCENT}; 
+            }}
             
-            #RenderButton {{ background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 {COLOR_ACCENT}, stop:1 #0099ff); 
-                             color: #000; border: none; font-size: 13px; border-radius: 4px; }}
-            #RenderButton:hover {{ background: #ffffff; }}
+            #RenderButton {{ 
+                background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 {COLOR_ACCENT}, stop:1 #0099ff); 
+                color: #000; border: none; font-size: 14px; border-radius: 8px; 
+            }}
+            #RenderButton:hover {{ background: #ffffff; box-shadow: 0 0 15px {COLOR_ACCENT}; }}
             
-            QListWidget {{ background: #1a1b1e; border: 1px solid #2c2e33; border-radius: 6px; padding: 5px; }}
-            QListWidget::item {{ padding: 8px; border-radius: 4px; }}
+            QListWidget {{ background: transparent; border: 1px solid {COLOR_BORDER}; border-radius: 10px; padding: 5px; }}
+            QListWidget::item {{ padding: 10px; border-radius: 6px; margin-bottom: 4px; background: rgba(255,255,255,0.02); }}
             QListWidget::item:selected {{ background: {COLOR_ACCENT_DIM}; color: {COLOR_ACCENT}; border: 1px solid {COLOR_ACCENT}; }}
             
-            QComboBox {{ background: #21222d; border: 1px solid #2c2e33; border-radius: 4px; padding: 4px; }}
-            QScrollBar:vertical {{ border: none; background: #1a1b1e; width: 10px; margin: 0px; }}
-            QScrollBar::handle:vertical {{ background: #2c2e33; min-height: 20px; border-radius: 5px; }}
+            QComboBox {{ background: {COLOR_BG_LIGHT}; border: 1px solid {COLOR_BORDER}; border-radius: 6px; padding: 6px; }}
+            QSlider::groove:horizontal {{ height: 4px; background: {COLOR_BORDER}; border-radius: 2px; }}
+            QSlider::handle:horizontal {{ background: {COLOR_ACCENT}; width: 16px; height: 16px; margin: -6px 0; border-radius: 8px; }}
             
-            QTextEdit {{ background: #0c0d10; border: 1px solid #2c2e33; border-radius: 6px; color: #a1b0b8; }}
+            QScrollBar:vertical {{ border: none; background: transparent; width: 8px; }}
+            QScrollBar::handle:vertical {{ background: {COLOR_BORDER}; min-height: 20px; border-radius: 4px; }}
+            
+            QTextEdit {{ background: rgba(5, 5, 10, 0.6); border: 1px solid {COLOR_BORDER}; border-radius: 10px; color: #a1b0b8; padding: 10px; }}
+            
+            QToolButton {{ border: none; padding: 8px; color: {COLOR_TEXT_SECONDARY}; text-align: left; font-weight: bold; }}
+            QToolButton:hover {{ color: {COLOR_ACCENT}; }}
         """)
 
     def import_dialog(self):
