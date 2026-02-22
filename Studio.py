@@ -260,14 +260,9 @@ class DraggableSVGItem(QGraphicsObject):
         self.update_appearance()
 
     def boundingRect(self):
-        # The bounding box must encompass the body at both its final (origin) 
-        # and its initial (handle offset) positions.
-        sx, sy = self.handle.pos().x(), self.handle.pos().y()
-        body_at_final = self._rect
-        body_at_initial = self._rect.translated(sx, sy)
-        
-        br = body_at_final.united(body_at_initial).united(QRectF(sx-10, sy-10, 20, 20))
-        return br.adjusted(-20, -20, 20, 20)
+        # SIMPLIFIED: Static bounding box with generous padding to prevent 
+        # recursion/crash during early init.
+        return self._rect.adjusted(-50, -50, 50, 50)
 
     def update_pen(self):
         color = QColor(COLOR_ACCENT) if self.isSelected() else QColor(COLOR_BORDER)
@@ -567,10 +562,7 @@ class SVGStudioWYSIWYG(QMainWindow):
         self.setWindowTitle("SVG STUDIO PRO - KINETIC ORCHESTRATOR")
         self.resize(1500, 950)
         
-        # Explicit Font Fix for Warnings
-        app_font = QFont(FONT_MAIN, 10)
-        self.setFont(app_font)
-        
+        # 1. CORE STATE INITIALIZATION (Must happen before UI)
         self.assets = []
         self.canvas_items = [] 
         self.selected_index = -1
@@ -578,65 +570,22 @@ class SVGStudioWYSIWYG(QMainWindow):
         self._block_recursion = False
         self.animation_offset = 0
         
+        # 2. UI SETUP
+        app_font = QFont(FONT_MAIN, 10)
+        self.setFont(app_font)
+        
         self.setup_ui()
         self.apply_styles()
         self.initializing = False
         
-        # --- ENHANCED RANDOMIZED STARTUP ANIMATIONS ---
-        import random
-        anim_type = random.choice(["BLOOM", "SLIDE", "BOUNCE", "GLITCH", "ZOOM", "SWIPE"])
-        
+        # 3. PROFESSIONAL STARTUP ANIMATION (Simple Fade)
         self.setWindowOpacity(0.0)
         self._bloom = QPropertyAnimation(self, b"windowOpacity")
-        self._bloom.setDuration(1200)
+        self._bloom.setDuration(800)
         self._bloom.setStartValue(0.0)
         self._bloom.setEndValue(1.0)
         self._bloom.setEasingCurve(QEasingCurve.OutCubic)
         self._bloom.start()
-        
-        cw = self.centralWidget()
-        self._central_anim = QPropertyAnimation(cw, b"pos")
-        start_pos = cw.pos()
-        
-        if anim_type == "SLIDE":
-            cw.move(start_pos.x(), start_pos.y() + 100)
-            self._central_anim.setDuration(1000)
-            self._central_anim.setStartValue(QPointF(start_pos.x(), start_pos.y() + 100))
-            self._central_anim.setEndValue(start_pos)
-            self._central_anim.setEasingCurve(QEasingCurve.OutExpo)
-            self._central_anim.start()
-        elif anim_type == "BOUNCE":
-            cw.move(start_pos.x(), start_pos.y() - 150)
-            self._central_anim.setDuration(1400)
-            self._central_anim.setStartValue(QPointF(start_pos.x(), start_pos.y() - 150))
-            self._central_anim.setEndValue(start_pos)
-            self._central_anim.setEasingCurve(QEasingCurve.OutBounce)
-            self._central_anim.start()
-        elif anim_type == "GLITCH":
-            # Quick flicker effect on window opacity
-            self._bloom.setDuration(400)
-            self._bloom.setKeyValueAt(0.2, 0.8)
-            self._bloom.setKeyValueAt(0.4, 0.2)
-            self._bloom.setKeyValueAt(0.6, 0.9)
-            self._bloom.setKeyValueAt(0.8, 0.4)
-            self._bloom.start()
-        elif anim_type == "ZOOM":
-            self._central_anim.setPropertyName(b"geometry")
-            rect = cw.geometry()
-            small_rect = QRectF(rect.x() + rect.width()/4, rect.y() + rect.height()/4, rect.width()/2, rect.height()/2).toRect()
-            cw.setGeometry(small_rect)
-            self._central_anim.setDuration(900)
-            self._central_anim.setStartValue(small_rect)
-            self._central_anim.setEndValue(rect)
-            self._central_anim.setEasingCurve(QEasingCurve.OutBack)
-            self._central_anim.start()
-        elif anim_type == "SWIPE":
-            cw.move(start_pos.x() - 200, start_pos.y())
-            self._central_anim.setDuration(1000)
-            self._central_anim.setStartValue(QPointF(start_pos.x() - 200, start_pos.y()))
-            self._central_anim.setEndValue(start_pos)
-            self._central_anim.setEasingCurve(QEasingCurve.OutQuint)
-            self._central_anim.start()
         
         # Animation loop for path dash offset
         from PySide6.QtCore import QTimer
@@ -943,45 +892,32 @@ class SVGStudioWYSIWYG(QMainWindow):
 
     def apply_styles(self):
         self.setStyleSheet(f"""
-            QMainWindow {{ background-color: {COLOR_BG_DARK}; }}
+            QMainWindow {{ background-color: #111216; }}
             QWidget {{ color: {COLOR_TEXT_PRIMARY}; font-family: {FONT_MAIN}; font-size: 13px; }}
             
-            #MainTabs::pane {{ border: 1px solid {COLOR_BORDER}; background: {COLOR_GLASS}; border-radius: 12px; top: -1px; }}
-            QTabBar::tab {{ background: transparent; padding: 10px 20px; color: {COLOR_TEXT_SECONDARY}; font-weight: bold; }}
+            #MainTabs::pane {{ border: 1px solid #2c2e33; background: #1a1b1e; border-radius: 6px; top: -1px; }}
+            QTabBar::tab {{ background: transparent; padding: 10px 16px; color: {COLOR_TEXT_SECONDARY}; font-weight: bold; }}
             QTabBar::tab:selected {{ color: {COLOR_ACCENT}; border-bottom: 2px solid {COLOR_ACCENT}; }}
             
             QGroupBox {{ font-weight: bold; font-size: 11px; color: {COLOR_ACCENT}; 
-                         border: 1px solid {COLOR_BORDER}; border-radius: 10px; margin-top: 20px; padding-top: 25px; background: {COLOR_GLASS}; }}
+                         border: 1px solid #2c2e33; border-radius: 6px; margin-top: 15px; padding-top: 20px; background: #1a1b1e; }}
             
-            QPushButton {{ background-color: {COLOR_BG_LIGHT}; border: 1px solid {COLOR_BORDER}; border-radius: 8px; padding: 10px; font-weight: bold; }}
-            QPushButton:hover {{ background-color: {COLOR_SURFACE}; border-color: {COLOR_ACCENT}; }}
+            QPushButton {{ background-color: #21222d; border: 1px solid #2c2e33; border-radius: 4px; padding: 8px; font-weight: bold; color: {COLOR_TEXT_PRIMARY}; }}
+            QPushButton:hover {{ background-color: #2c2e33; border-color: {COLOR_ACCENT}; }}
             
             #RenderButton {{ background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 {COLOR_ACCENT}, stop:1 #0099ff); 
-                             color: #000; border: none; font-size: 14px; border-radius: 8px; margin-top: 5px; }}
+                             color: #000; border: none; font-size: 13px; border-radius: 4px; }}
             #RenderButton:hover {{ background: #ffffff; }}
             
-            #DeleteButton {{ background: rgba(255, 110, 110, 0.1); color: #ff6e6e; border-color: rgba(255, 110, 110, 0.2); }}
-            
-            QListWidget {{ background: {COLOR_BG_LIGHT}; border: 1px solid {COLOR_BORDER}; border-radius: 10px; padding: 5px; }}
-            QListWidget::item {{ padding: 8px; border-radius: 5px; }}
+            QListWidget {{ background: #1a1b1e; border: 1px solid #2c2e33; border-radius: 6px; padding: 5px; }}
+            QListWidget::item {{ padding: 8px; border-radius: 4px; }}
             QListWidget::item:selected {{ background: {COLOR_ACCENT_DIM}; color: {COLOR_ACCENT}; border: 1px solid {COLOR_ACCENT}; }}
             
-            QComboBox {{ background: {COLOR_BG_LIGHT}; border: 1px solid {COLOR_BORDER}; border-radius: 6px; padding: 6px; min-width: 100px; }}
-            QSlider::groove:horizontal {{ height: 6px; background: {COLOR_BG_LIGHT}; border-radius: 3px; }}
-            QSlider::handle:horizontal {{ background: {COLOR_ACCENT}; width: 18px; height: 18px; margin: -6px 0; border-radius: 9px; }}
+            QComboBox {{ background: #21222d; border: 1px solid #2c2e33; border-radius: 4px; padding: 4px; }}
+            QScrollBar:vertical {{ border: none; background: #1a1b1e; width: 10px; margin: 0px; }}
+            QScrollBar::handle:vertical {{ background: #2c2e33; min-height: 20px; border-radius: 5px; }}
             
-            #PreviewSlider::handle:horizontal {{
-                background: white; 
-                border: 2px solid {COLOR_ACCENT};
-                width: 14px; height: 28px;
-                margin: -12px 0;
-            }}
-            
-            QTextEdit {{ background: rgba(5, 5, 7, 0.8); border: 1px solid {COLOR_BORDER}; border-radius: 8px; color: #a1b0b8; }}
-            
-            QTabWidget::pane {{ border: 1px solid {COLOR_BORDER}; background: {COLOR_GLASS}; border-radius: 12px; }}
-            QTabBar::tab {{ background: transparent; padding: 10px 20px; color: {COLOR_TEXT_SECONDARY}; font-weight: bold; }}
-            QTabBar::tab:selected {{ color: {COLOR_ACCENT}; border-bottom: 2px solid {COLOR_ACCENT}; }}
+            QTextEdit {{ background: #0c0d10; border: 1px solid #2c2e33; border-radius: 6px; color: #a1b0b8; }}
         """)
 
     def import_dialog(self):
@@ -1007,8 +943,9 @@ class SVGStudioWYSIWYG(QMainWindow):
 
     def on_canvas_item_moved(self, item, pos):
         if self._block_recursion: return
-        self._block_recursion = True # Temporary block inside class if needed, but here we use the item's flag
+        self._block_recursion = True 
         
+        # Calculate Current Manim Position for the drop point
         new_manim_x = round((pos.x() / 400.0) * (MANIM_WIDTH / 2.0), 2)
         new_manim_y = round((-pos.y() / 225.0) * (MANIM_HEIGHT / 2.0), 2)
         
@@ -1016,29 +953,31 @@ class SVGStudioWYSIWYG(QMainWindow):
             idx = self.canvas_items.index(item)
             asset = self.assets[idx]
             
-            # Calculate Delta
+            # 1. Calculate the Delta (How far did the user drag?)
             old_final = asset["final_state"]
             dx = new_manim_x - old_final["x"]
             dy = new_manim_y - old_final["y"]
             
-            # Move BOTH Initial and Final states together (Whole-Path Movement)
+            # 2. Update BOTH states by the same delta (Moves entire animation path)
             asset["initial_state"]["x"] += dx
             asset["initial_state"]["y"] += dy
             asset["final_state"]["x"] = new_manim_x
             asset["final_state"]["y"] = new_manim_y
             
             self.update_code()
-            item.update()
-            # We don't call update_appearance here to avoid fighting the mouse drag pos
-            # but we do need to update the handle position relative to the item
+            
+            # 3. Synchronize Handle visual position relative to the item
             initial = asset["initial_state"]
-            sx = (initial["x"] / (MANIM_WIDTH / 2.0)) * 400.0 - pos.x()
-            sy = (-initial["y"] / (MANIM_HEIGHT / 2.0)) * 225.0 - pos.y()
-            item.handle.setPos(sx, sy)
+            hx = (initial["x"] / (MANIM_WIDTH / 2.0)) * 400.0 - pos.x()
+            hy = (-initial["y"] / (MANIM_HEIGHT / 2.0)) * 225.0 - pos.y()
+            item.handle.setPos(hx, hy)
+            
+            # 4. Trigger localized updates
+            item.update()
             
         except (ValueError, KeyError): pass
         finally:
-            self._block_recursion = False # If we had a class-level block
+            self._block_recursion = False
 
     def update_ui_from_asset(self):
         if self.selected_index < 0: return
