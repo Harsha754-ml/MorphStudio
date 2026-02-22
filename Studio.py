@@ -710,9 +710,9 @@ class SVGStudioWYSIWYG(QMainWindow):
         self.brand_text_vbox.addWidget(self.brand_title)
         self.brand_text_vbox.addWidget(self.brand_subtitle)
         
-        self.brand_layout.addWidget(self.brand_icon)
-        self.brand_layout.addWidget(self.brand_text_container)
-        self.brand_layout.addStretch()
+        bb_layout.addWidget(self.brand_icon)
+        bb_layout.addWidget(self.brand_text_container)
+        bb_layout.addStretch()
         
         self.top_layout.addWidget(self.brand_bar)
         
@@ -906,7 +906,7 @@ class SVGStudioWYSIWYG(QMainWindow):
         
         # Inspector Header
         self.insp_header = QLabel("PROPERTIES")
-        self.insp_header.setStyleSheet(f"color: {COLOR_TEXT_SECONDARY}; font-weight: 600; font-size: 10px; letter-spacing: 1px; padding: {GRID_8*2}px;")
+        self.insp_header.setStyleSheet(f"color: {COLOR_TEXT_SECONDARY}; font-weight: 600; font-size: 10px; letter-spacing: 1.5px; padding: 24px;")
         self.insp_layout.addWidget(self.insp_header)
         
         self.insp_divider = QFrame()
@@ -1053,7 +1053,7 @@ class SVGStudioWYSIWYG(QMainWindow):
             #Sidebar, #Inspector {{ 
                 background: {COLOR_PANEL}; 
                 border: 1px solid {COLOR_BORDER};
-                border-radius: 14px;
+                border-radius: 16px; 
                 margin: {GRID_8}px;
             }}
             
