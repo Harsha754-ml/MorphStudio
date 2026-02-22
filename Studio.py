@@ -635,20 +635,20 @@ class SVGStudioWYSIWYG(QMainWindow):
         self.layer_list.itemClicked.connect(self.select_by_index)
         self.layer_list.setContextMenuPolicy(Qt.CustomContextMenu)
         self.layer_list.customContextMenuRequested.connect(self.show_layer_context_menu)
-        side_layout.addWidget(self.layer_list)
+        self.sidebar_layout.addWidget(self.layer_list)
         
         self.add_btn = AnimatedButton("IMPORT SVG")
         self.add_btn.setMinimumHeight(40)
         self.add_btn.clicked.connect(self.import_dialog)
-        side_layout.addWidget(self.add_btn)
+        self.sidebar_layout.addWidget(self.add_btn)
         
         self.clear_btn = AnimatedButton("CLEAR ALL")
         self.clear_btn.setMinimumHeight(40)
         self.clear_btn.setObjectName("DeleteButton") # Style still handled by CSS for text color
         self.clear_btn.clicked.connect(self.clear_canvas)
-        side_layout.addWidget(self.clear_btn)
+        self.sidebar_layout.addWidget(self.clear_btn)
         
-        side_layout.addStretch()
+        self.sidebar_layout.addStretch()
         
         # Left Sidebar Shadow
         l_shadow = QGraphicsDropShadowEffect()
@@ -657,7 +657,7 @@ class SVGStudioWYSIWYG(QMainWindow):
         l_shadow.setOffset(5, 0)
         self.sidebar.setGraphicsEffect(l_shadow)
         
-        layout.addWidget(self.sidebar)
+        self.main_layout.addWidget(self.sidebar)
 
         # 2. Center Column
         center_widget = QWidget()
@@ -780,7 +780,7 @@ class SVGStudioWYSIWYG(QMainWindow):
         
         center_layout.addWidget(self.bottom_tabs)
         
-        layout.addWidget(center_widget, stretch=1)
+        self.main_layout.addWidget(center_widget, stretch=1)
 
         # 3. Right Sidebar: Premium Collapsible Inspector
         self.inspector_panel = QFrame()
@@ -864,7 +864,7 @@ class SVGStudioWYSIWYG(QMainWindow):
         inspector_layout.addWidget(self.stage_section)
         inspector_layout.addStretch() # Push everything up
         
-        layout.addWidget(self.inspector_panel)
+        self.main_layout.addWidget(self.inspector_panel)
 
     def on_bg_changed(self, index):
         if not self.initializing:
