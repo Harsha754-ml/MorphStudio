@@ -18,6 +18,7 @@ class StudioScene(Scene):
     def construct(self):
         bg_color = "{bg_color}"
         self.camera.background_color = bg_color
+        fit_padding = {fit_padding}
         
         assets = {assets_json}
         
@@ -25,13 +26,13 @@ class StudioScene(Scene):
         easings = {{
             "Smooth": rate_functions.smooth,
             "Linear": rate_functions.linear,
-            "InExpo": rate_functions.exponential_decay,
-            "InBounce": rate_functions.rush_into, 
-            "Elastic": rate_functions.rush_from,
+            "InExpo": rate_functions.ease_in_expo,
+            "InBounce": rate_functions.ease_in_bounce, 
+            "Elastic": rate_functions.ease_in_elastic,
             "EaseIn": rate_functions.ease_in_sine,
             "EaseOut": rate_functions.ease_out_sine,
             "EaseInOut": rate_functions.ease_in_out_sine,
-            "SlowIn": rate_functions.rush_into,
+            "SlowIn": rate_functions.slow_into,
             "SlowOut": rate_functions.rush_from,
         }}
         

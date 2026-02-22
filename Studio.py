@@ -1,5 +1,6 @@
 import sys
 import json
+import math
 from pathlib import Path
 from PySide6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout, 
                              QHBoxLayout, QPushButton, QListWidget, QListWidgetItem,
@@ -32,6 +33,72 @@ FONT_MONO = "JetBrains Mono"
 
 MANIM_WIDTH = 14.22222222  
 MANIM_HEIGHT = 8.0
+
+class AnimatedButton(QPushButton):
+    """A button with smooth hover scaling and depth effects."""
+    def __init__(self, text, parent=None, is_accent=False):
+        super().__init__(text, parent)
+        self.is_accent = is_accent
+        self._scale = 1.0
+        
+        self._anim = QPropertyAnimation(self, b"scale")
+        self._anim.setDuration(150)
+        self._anim.setEasingCurve(QEasingCurve.OutCubic)
+        
+        # Shadow for depth
+        self.shadow = QGraphicsDropShadowEffect(self)
+        self.shadow.setBlurRadius(15)
+        self.shadow.setOffset(0, 4)
+        self.shadow.setColor(QColor(0, 0, 0, 100))
+        self.setGraphicsEffect(self.shadow)
+
+    @Property(float)
+    def scale(self): return self._scale
+    @scale.setter
+    def scale(self, s):
+        self._scale = s
+        self.update()
+
+    def enterEvent(self, event):
+        self._anim.stop()
+        self._anim.setEndValue(1.05)
+        self._anim.start()
+        super().enterEvent(event)
+
+    def leaveEvent(self, event):
+        self._anim.stop()
+        self._anim.setEndValue(1.0)
+        self._anim.start()
+        super().leaveEvent(event)
+
+    def paintEvent(self, event):
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.Antialiasing)
+        
+        # Apply scaling from center
+        painter.translate(self.width()/2, self.height()/2)
+        painter.scale(self._scale, self._scale)
+        painter.translate(-self.width()/2, -self.height()/2)
+        
+        # Draw background based on accent
+        rect = self.rect().adjusted(1, 1, -1, -1)
+        if self.is_accent:
+            grad = QLinearGradient(0, 0, self.width(), 0)
+            grad.setColorAt(0, QColor(COLOR_ACCENT))
+            grad.setColorAt(1, QColor("#0099ff"))
+            painter.setBrush(grad)
+            painter.setPen(Qt.NoPen)
+        else:
+            painter.setBrush(QColor(COLOR_BG_LIGHT))
+            painter.setPen(QPen(QColor(COLOR_BORDER), 1))
+            
+        painter.drawRoundedRect(rect, 8, 8)
+        
+        # Text
+        painter.setPen(QColor("#000000" if self.is_accent else COLOR_TEXT_PRIMARY))
+        painter.setFont(self.font())
+        painter.drawText(self.rect(), Qt.AlignCenter, self.text())
+        painter.end()
 
 class LayerWidget(QWidget):
     def __init__(self, name, svg_path, parent=None):
@@ -242,7 +309,6 @@ class DraggableSVGItem(QGraphicsObject):
         init = self.asset["initial_state"]
         final = self.asset["final_state"]
         
-        import math
         state = {
             "x": lerp(init["x"], final["x"], it),
             "y": lerp(init["y"], final["y"], it),
@@ -323,7 +389,6 @@ class DraggableSVGItem(QGraphicsObject):
             painter.drawLine(QPointF(isx, isy), QPointF(fsx, fsy))
             
             # Arrowhead at Final
-            import math
             angle = math.atan2(fsy - isy, fsx - isx)
             arrow_size = 10
             p1 = QPointF(fsx, fsy)
@@ -504,6 +569,19 @@ class SVGStudioWYSIWYG(QMainWindow):
         self.apply_styles()
         self.initializing = False
         
+        # --- STARTUP ANIMATION (BLOOM) ---
+        self.setWindowOpacity(0.0)
+        self._bloom = QPropertyAnimation(self, b"windowOpacity")
+        self._bloom.setDuration(1200)
+        self._bloom.setStartValue(0.0)
+        self._bloom.setEndValue(1.0)
+        self._bloom.setEasingCurve(QEasingCurve.InOutQuart)
+        self._bloom.start()
+        
+        # Subtle scale entrance for the central widget
+        central_widget = self.centralWidget()
+        self._scale_anim = QPropertyAnimation(central_widget, b"scale") # Assuming we add a scale property to QWidget or use a wrapper
+        
         # Animation loop for path dash offset
         from PySide6.QtCore import QTimer
         self.dash_timer = QTimer(self)
@@ -543,14 +621,14 @@ class SVGStudioWYSIWYG(QMainWindow):
         self.layer_list.customContextMenuRequested.connect(self.show_layer_context_menu)
         side_layout.addWidget(self.layer_list)
         
-        self.add_btn = QPushButton("IMPORT SVG")
-        self.add_btn.setMinimumHeight(32)
+        self.add_btn = AnimatedButton("IMPORT SVG")
+        self.add_btn.setMinimumHeight(40)
         self.add_btn.clicked.connect(self.import_dialog)
         side_layout.addWidget(self.add_btn)
         
-        self.clear_btn = QPushButton("CLEAR ALL")
-        self.clear_btn.setMinimumHeight(32)
-        self.clear_btn.setObjectName("DeleteButton") # Red style
+        self.clear_btn = AnimatedButton("CLEAR ALL")
+        self.clear_btn.setMinimumHeight(40)
+        self.clear_btn.setObjectName("DeleteButton") # Style still handled by CSS for text color
         self.clear_btn.clicked.connect(self.clear_canvas)
         side_layout.addWidget(self.clear_btn)
         
@@ -659,16 +737,32 @@ class SVGStudioWYSIWYG(QMainWindow):
         center_layout.addWidget(center_block, alignment=Qt.AlignCenter)
         center_layout.addStretch(1)
         
+        # 3. Bottom Tabs: Console & Code
+        self.bottom_tabs = QTabWidget()
+        self.bottom_tabs.setFixedHeight(160)
+        self.bottom_tabs.setObjectName("BottomPanel")
+        
+        # Console
         self.console_panel = QFrame()
-        self.console_panel.setObjectName("ConsolePanel")
-        self.console_panel.setFixedHeight(120)
         console_layout = QVBoxLayout(self.console_panel)
-        console_layout.setContentsMargins(12, 12, 12, 12)
+        console_layout.setContentsMargins(8, 8, 8, 8)
         self.console = QTextEdit()
         self.console.setReadOnly(True)
         self.console.setFont(QFont(FONT_MONO, 10))
         console_layout.addWidget(self.console)
-        center_layout.addWidget(self.console_panel)
+        self.bottom_tabs.addTab(self.console_panel, "CONSOLE")
+        
+        # Code Preview
+        self.code_panel = QFrame()
+        code_layout = QVBoxLayout(self.code_panel)
+        code_layout.setContentsMargins(8, 8, 8, 8)
+        self.code_view = QTextEdit()
+        self.code_view.setReadOnly(True)
+        self.code_view.setFont(QFont(FONT_MONO, 10))
+        code_layout.addWidget(self.code_view)
+        self.bottom_tabs.addTab(self.code_panel, "CODE")
+        
+        center_layout.addWidget(self.bottom_tabs)
         
         layout.addWidget(center_widget, stretch=1)
 
@@ -742,9 +836,8 @@ class SVGStudioWYSIWYG(QMainWindow):
         self.quality_mapping = {"Draft": "l", "HD": "m", "Full HD": "k", "4K": "p"}
         self.stage_form.addRow("Export", self.quality_combo)
         
-        self.render_btn = QPushButton("RENDER STUDIO EXPORT")
-        self.render_btn.setMinimumHeight(40)
-        self.render_btn.setObjectName("RenderButton")
+        self.render_btn = AnimatedButton("RENDER STUDIO EXPORT", is_accent=True)
+        self.render_btn.setMinimumHeight(48)
         self.render_btn.clicked.connect(self.start_render)
         self.stage_form.addRow(self.render_btn)
         
@@ -828,7 +921,11 @@ class SVGStudioWYSIWYG(QMainWindow):
                 margin: -12px 0;
             }}
             
-            QTextEdit {{ background: {COLOR_BG_DARK}; border: 1px solid {COLOR_BORDER}; border-radius: 8px; color: #a1b0b8; }}
+            QTextEdit {{ background: rgba(5, 5, 7, 0.8); border: 1px solid {COLOR_BORDER}; border-radius: 8px; color: #a1b0b8; }}
+            
+            QTabWidget::pane {{ border: 1px solid {COLOR_BORDER}; background: {COLOR_GLASS}; border-radius: 12px; }}
+            QTabBar::tab {{ background: transparent; padding: 10px 20px; color: {COLOR_TEXT_SECONDARY}; font-weight: bold; }}
+            QTabBar::tab:selected {{ color: {COLOR_ACCENT}; border-bottom: 2px solid {COLOR_ACCENT}; }}
         """)
 
     def import_dialog(self):
@@ -969,9 +1066,10 @@ class SVGStudioWYSIWYG(QMainWindow):
     def duplicate_selected(self):
         if self.selected_index < 0: return
         src = self.assets[self.selected_index]
-        new_asset = src.copy()
-        new_asset["x"] += 0.5
-        new_asset["y"] -= 0.5
+        import copy
+        new_asset = copy.deepcopy(src)
+        new_asset["final_state"]["x"] += 0.5
+        new_asset["final_state"]["y"] -= 0.5
         self.add_svg_asset_obj(new_asset)
 
     def add_svg_asset(self, file_path):
@@ -1038,8 +1136,8 @@ class SVGStudioWYSIWYG(QMainWindow):
     def center_selected(self):
         if self.selected_index < 0: return
         asset = self.assets[self.selected_index]
-        asset["x"] = 0.0
-        asset["y"] = 0.0
+        asset["final_state"]["x"] = 0.0
+        asset["final_state"]["y"] = 0.0
         self.canvas_items[self.selected_index].update_appearance()
         self.update_code()
 
