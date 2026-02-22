@@ -16,20 +16,21 @@ from PySide6.QtSvg import QSvgRenderer
 
 from studio_core import StudioCore, PROJECT_ROOT
 
-# --- PREMIUM DESIGN COLOR SYSTEM - LIQUID GLASS
-COLOR_BG_DARK = "#0a0b10"
-COLOR_BG_LIGHT = "rgba(25, 27, 35, 0.7)"
-COLOR_SURFACE = "rgba(45, 48, 60, 0.4)"
-COLOR_GLASS = "rgba(30, 32, 45, 0.5)"
-COLOR_ACCENT = "#00d2ff"             # Electric Cyan
-COLOR_ACCENT_DIM = "rgba(0, 210, 255, 0.15)"
-COLOR_BORDER = "rgba(255, 255, 255, 0.1)"
-COLOR_TEXT_PRIMARY = "#ffffff"
-COLOR_TEXT_SECONDARY = "#a1b0b8"
-COLOR_CANVAS = "#050507" # Kept from original, as it's not redefined in the new block
+# --- PROFESSIONAL DESIGN SYSTEM ---
+COLOR_BG_DARK = "#0e0f12"      
+COLOR_BG_LIGHT = "#16171a"     
+COLOR_PANEL = "#1c1e22"
+COLOR_ACCENT = "#00d2ff"       
+COLOR_ACCENT_DIM = "rgba(0, 210, 255, 0.12)"
+COLOR_TEXT_PRIMARY = "#f5f5f7"
+COLOR_TEXT_SECONDARY = "#8b949e"
+COLOR_BORDER = "rgba(255, 255, 255, 0.05)"
+COLOR_CANVAS = "#050507"
 
-FONT_MAIN = "Inter" # FALLBACK: System Sans-Serif
+FONT_MAIN = "Inter"
 FONT_MONO = "JetBrains Mono"
+
+GRID_8 = 8  # Strict 8px spacing grid
 
 MANIM_WIDTH = 14.22222222  
 MANIM_HEIGHT = 8.0
@@ -42,15 +43,9 @@ class AnimatedButton(QPushButton):
         self._scale = 1.0
         
         self._anim = QPropertyAnimation(self, b"scale")
-        self._anim.setDuration(150)
+        self._anim.setDuration(120)
         self._anim.setEasingCurve(QEasingCurve.OutCubic)
-        
-        # Shadow for depth
-        self.shadow = QGraphicsDropShadowEffect(self)
-        self.shadow.setBlurRadius(15)
-        self.shadow.setOffset(0, 4)
-        self.shadow.setColor(QColor(0, 0, 0, 100))
-        self.setGraphicsEffect(self.shadow)
+        self.setGraphicsEffect(None) # Removed heavy shadows
 
     @Property(float)
     def scale(self): return self._scale
@@ -604,28 +599,64 @@ class SVGStudioWYSIWYG(QMainWindow):
     def setup_ui(self):
         self.central_widget = QWidget()
         self.setCentralWidget(self.central_widget)
-        self.main_layout = QHBoxLayout(self.central_widget)
-        self.main_layout.setContentsMargins(15, 15, 15, 15)
-        self.main_layout.setSpacing(15)
+        self.top_layout = QVBoxLayout(self.central_widget)
+        self.top_layout.setContentsMargins(GRID_8*2, GRID_8*2, GRID_8*2, GRID_8*2)
+        self.top_layout.setSpacing(GRID_8*2)
         
-        # --- LEFT SIDEBAR (Assets & Layers) ---
+        # --- 1. BRANDING BAR ---
+        self.brand_bar = QFrame()
+        self.brand_bar.setFixedHeight(50)
+        self.brand_layout = QHBoxLayout(self.brand_bar)
+        self.brand_layout.setContentsMargins(GRID_8, 0, GRID_8, 0)
+        self.brand_layout.setSpacing(GRID_8*1.5)
+        
+        # Modern Morphing Symbol (Icon)
+        self.brand_icon = QLabel("◈") # Modern glyph
+        self.brand_icon.setStyleSheet(f"color: {COLOR_ACCENT}; font-size: 24px; font-weight: bold;")
+        
+        # Text Stack
+        self.brand_text_container = QWidget()
+        self.brand_text_vbox = QVBoxLayout(self.brand_text_container)
+        self.brand_text_vbox.setContentsMargins(0, 0, 0, 0)
+        self.brand_text_vbox.setSpacing(0)
+        
+        self.brand_title = QLabel("MorphStudio")
+        self.brand_title.setStyleSheet(f"color: {COLOR_TEXT_PRIMARY}; font-size: 18px; font-weight: 600; letter-spacing: 0.5px;")
+        
+        self.brand_subtitle = QLabel("Vector Motion Engine")
+        self.brand_subtitle.setStyleSheet(f"color: {COLOR_TEXT_SECONDARY}; font-size: 10px; font-weight: 300; text-transform: uppercase; letter-spacing: 1.5px;")
+        
+        self.brand_text_vbox.addWidget(self.brand_title)
+        self.brand_text_vbox.addWidget(self.brand_subtitle)
+        
+        self.brand_layout.addWidget(self.brand_icon)
+        self.brand_layout.addWidget(self.brand_text_container)
+        self.brand_layout.addStretch()
+        
+        self.top_layout.addWidget(self.brand_bar)
+        
+        # Main Work Area
+        self.main_layout = QHBoxLayout()
+        self.main_layout.setSpacing(GRID_8*2)
+        self.top_layout.addLayout(self.main_layout)
+        
+        # --- LEFT SIDEBAR (Layers) ---
         self.sidebar = QFrame()
         self.sidebar.setObjectName("Sidebar")
-        self.sidebar.setFixedWidth(300)
+        self.sidebar.setFixedWidth(280)
         self.sidebar_layout = QVBoxLayout(self.sidebar)
-        self.sidebar_layout.setContentsMargins(15, 10, 15, 15)
-        self.sidebar_layout.setSpacing(15)
+        self.sidebar_layout.setContentsMargins(GRID_8*2, GRID_8*2, GRID_8*2, GRID_8*2)
+        self.sidebar_layout.setSpacing(GRID_8*1.5)
         
-        # LOGO INTEGRATION
-        self.logo_label = QLabel()
-        logo_pix = QPixmap("Logo.png")
-        if not logo_pix.isNull():
-            self.logo_label.setPixmap(logo_pix.scaled(180, 50, Qt.KeepAspectRatio, Qt.SmoothTransformation))
-        else:
-            self.logo_label.setText("MORPH STUDIO")
-            self.logo_label.setStyleSheet(f"color: {COLOR_ACCENT}; font-weight: bold; font-size: 18px;")
-        self.logo_label.setAlignment(Qt.AlignCenter)
-        self.sidebar_layout.addWidget(self.logo_label)
+        # Section Title: LAYERS
+        self.layer_header = QLabel("LAYERS")
+        self.layer_header.setStyleSheet(f"color: {COLOR_TEXT_SECONDARY}; font-weight: 600; font-size: 10px; letter-spacing: 1px;")
+        self.sidebar_layout.addWidget(self.layer_header)
+        
+        self.sidebar_divider = QFrame()
+        self.sidebar_divider.setFixedHeight(1)
+        self.sidebar_divider.setStyleSheet(f"background: {COLOR_BORDER};")
+        self.sidebar_layout.addWidget(self.sidebar_divider)
         
         # lbl_layers = QLabel("LAYERS") # This label is removed as per the new structure
         # lbl_layers.setStyleSheet(f"color: {COLOR_ACCENT}; font-size: 11px; font-weight: bold; letter-spacing: 1px;")
@@ -663,52 +694,58 @@ class SVGStudioWYSIWYG(QMainWindow):
         center_widget = QWidget()
         center_layout = QVBoxLayout(center_widget)
         center_layout.setContentsMargins(0, 0, 0, 0)
-        center_layout.setSpacing(16)
+        center_layout.setSpacing(GRID_8*2)
         
-        # Center the entire content block
-        center_block = QWidget()
-        cb_layout = QVBoxLayout(center_block)
-        cb_layout.setContentsMargins(0, 0, 0, 0)
-        cb_layout.setSpacing(16)
+        # --- STAGE CONTAINER (Upgraded) ---
+        self.stage_box = QFrame()
+        self.stage_box.setObjectName("StageBox")
+        self.sb_layout = QVBoxLayout(self.stage_box)
+        self.sb_layout.setContentsMargins(GRID_8*2, GRID_8*2, GRID_8*2, GRID_8*2)
         
-        self.canvas_container = QFrame()
-        self.canvas_container.setObjectName("CanvasContainer")
-        self.canvas_container.setStyleSheet(f"background: {COLOR_BG_DARK}; border: 1px solid {COLOR_BORDER}; border-radius: 12px;")
-        cc_layout = QVBoxLayout(self.canvas_container)
-        cc_layout.setContentsMargins(0, 0, 0, 0) # Flush for monitor feel
-        cc_layout.setSpacing(0)
+        # Preview Overlay
+        self.preview_overlay = QLabel("MorphStudio Preview")
+        self.preview_overlay.setAlignment(Qt.AlignCenter)
+        self.preview_overlay.setStyleSheet("color: rgba(255, 255, 255, 0.3); font-size: 10px; font-weight: 300; letter-spacing: 2px; text-transform: uppercase;")
+        self.sb_layout.addWidget(self.preview_overlay)
         
         self.canvas = StudioCanvas()
+        self.canvas.app = self # Link for coordination
         self.canvas.file_dropped.connect(self.add_svg_asset)
         self.canvas.scene().selectionChanged.connect(self.on_selection_changed)
-        cc_layout.addWidget(self.canvas, alignment=Qt.AlignCenter)
+        self.sb_layout.addWidget(self.canvas, alignment=Qt.AlignCenter)
         
-        cb_layout.addWidget(self.canvas_container)
+        center_layout.addStretch(1)
+        center_layout.addWidget(self.stage_box, alignment=Qt.AlignCenter)
         
-        # Consistently Aligned Timeline
+        # --- TIMELINE AREA ---
+        self.timeline_wrapper = QWidget()
+        self.tw_layout = QVBoxLayout(self.timeline_wrapper)
+        self.tw_layout.setContentsMargins(0, 0, 0, 0)
+        self.tw_layout.setSpacing(GRID_8)
+        
         self.timeline_container = QFrame()
-        self.timeline_container.setStyleSheet(f"background: {COLOR_GLASS}; border: 1px solid {COLOR_BORDER}; border-radius: 24px;")
-        self.timeline_container.setFixedHeight(48)
-        tc_layout = QHBoxLayout(self.timeline_container)
-        tc_layout.setContentsMargins(16, 0, 16, 0)
-        tc_layout.setSpacing(12)
+        self.timeline_container.setObjectName("TimelineContainer")
+        self.tc_layout = QHBoxLayout(self.timeline_container)
+        self.tc_layout.setContentsMargins(GRID_8*2, 0, GRID_8*2, 0)
+        self.tc_layout.setSpacing(GRID_8*1.5)
         
         lbl_0 = QLabel("0%")
         lbl_0.setStyleSheet(f"color: {COLOR_TEXT_SECONDARY}; font-size: 10px; font-weight: bold;")
-        tc_layout.addWidget(lbl_0)
+        self.tc_layout.addWidget(lbl_0)
         
         self.timeline = QSlider(Qt.Horizontal)
         self.timeline.setObjectName("PreviewSlider")
         self.timeline.setRange(0, 1000)
         self.timeline.setValue(0)
         self.timeline.valueChanged.connect(self.on_timeline_changed)
-        tc_layout.addWidget(self.timeline)
+        self.tc_layout.addWidget(self.timeline)
         
         lbl_100 = QLabel("100%")
         lbl_100.setStyleSheet(f"color: {COLOR_TEXT_SECONDARY}; font-size: 10px; font-weight: bold;")
-        tc_layout.addWidget(lbl_100)
+        self.tc_layout.addWidget(lbl_100)
         
-        cb_layout.addWidget(self.timeline_container)
+        self.tw_layout.addWidget(self.timeline_container, alignment=Qt.AlignCenter)
+        center_layout.addWidget(self.timeline_wrapper)
         
         # Add Canvas Tools above the console
         self.toolbar_container = QWidget()
@@ -782,13 +819,34 @@ class SVGStudioWYSIWYG(QMainWindow):
         
         self.main_layout.addWidget(center_widget, stretch=1)
 
-        # 3. Right Sidebar: Premium Collapsible Inspector
+        # --- RIGHT SIDEBAR: INSPECTOR ---
         self.inspector_panel = QFrame()
-        self.inspector_panel.setFixedWidth(380)
+        self.inspector_panel.setFixedWidth(320)
         self.inspector_panel.setObjectName("Inspector")
-        inspector_layout = QVBoxLayout(self.inspector_panel)
-        inspector_layout.setContentsMargins(0, 0, 0, 0)
-        inspector_layout.setSpacing(16) # Consistent vertical rhythmic gap
+        self.insp_layout = QVBoxLayout(self.inspector_panel)
+        self.insp_layout.setContentsMargins(0, 0, 0, 0)
+        self.insp_layout.setSpacing(0)
+        
+        # Inspector Header
+        self.insp_header = QLabel("PROPERTIES")
+        self.insp_header.setStyleSheet(f"color: {COLOR_TEXT_SECONDARY}; font-weight: 600; font-size: 10px; letter-spacing: 1px; padding: {GRID_8*2}px;")
+        self.insp_layout.addWidget(self.insp_header)
+        
+        self.insp_divider = QFrame()
+        self.insp_divider.setFixedHeight(1)
+        self.insp_divider.setStyleSheet(f"background: {COLOR_BORDER};")
+        self.insp_layout.addWidget(self.insp_divider)
+        
+        # Inspector Scroll Area
+        self.insp_scroll = QScrollArea()
+        self.insp_scroll.setWidgetResizable(True)
+        self.insp_scroll.setFrameShape(QFrame.NoFrame)
+        self.insp_content = QWidget()
+        self.inspector_layout = QVBoxLayout(self.insp_content)
+        self.inspector_layout.setContentsMargins(GRID_8*2, GRID_8*2, GRID_8*2, GRID_8*2)
+        self.inspector_layout.setSpacing(GRID_8*2)
+        self.insp_scroll.setWidget(self.insp_content)
+        self.insp_layout.addWidget(self.insp_scroll)
         
         # Section 1: TRANSFORM
         self.trans_section = CollapsibleSection("TRANSFORM")
@@ -904,56 +962,79 @@ class SVGStudioWYSIWYG(QMainWindow):
     def apply_styles(self):
         self.setStyleSheet(f"""
             QMainWindow {{ background-color: {COLOR_BG_DARK}; }}
-            QWidget {{ color: {COLOR_TEXT_PRIMARY}; font-family: '{FONT_MAIN}', sans-serif; font-size: 13px; }}
+            QWidget {{ color: {COLOR_TEXT_PRIMARY}; font-family: '{FONT_MAIN}', sans-serif; font-size: 12px; }}
             
             #Sidebar, #Inspector {{ 
-                background: {COLOR_GLASS}; 
-                border: 1px solid {COLOR_BORDER}; 
-                border-radius: 12px;
+                background: {COLOR_PANEL}; 
+                border-right: 1px solid {COLOR_BORDER}; 
             }}
+            #Inspector {{ border-right: none; border-left: 1px solid {COLOR_BORDER}; }}
             
-            #MainTabs::pane {{ border: 1px solid {COLOR_BORDER}; background: {COLOR_GLASS}; border-radius: 12px; top: -1px; }}
-            QTabBar::tab {{ background: transparent; padding: 12px 20px; color: {COLOR_TEXT_SECONDARY}; font-weight: bold; }}
-            QTabBar::tab:selected {{ color: {COLOR_ACCENT}; border-bottom: 2px solid {COLOR_ACCENT}; }}
-            
-            QGroupBox {{ font-weight: bold; font-size: 11px; color: {COLOR_ACCENT}; 
-                         border: 1px solid {COLOR_BORDER}; border-radius: 10px; margin-top: 20px; padding-top: 25px; 
-                         background: rgba(255, 255, 255, 0.03); }}
-            
-            QPushButton {{ 
-                background-color: rgba(255, 255, 255, 0.05); 
+            #StageBox {{ 
+                background: {COLOR_BG_DARK}; 
                 border: 1px solid {COLOR_BORDER}; 
                 border-radius: 8px; 
-                padding: 10px; 
-                font-weight: bold; 
+            }}
+            
+            #TimelineContainer {{
+                background: {COLOR_PANEL};
+                border: 1px solid {COLOR_BORDER};
+                border-radius: 20px;
+                height: 40px;
+            }}
+            
+            QGroupBox {{ font-weight: 600; font-size: 10px; color: {COLOR_TEXT_SECONDARY}; 
+                         border: none; margin-top: {GRID_8*2}px; padding-top: {GRID_8}px; }}
+            
+            QPushButton {{ 
+                background-color: {COLOR_BG_LIGHT}; 
+                border: 1px solid {COLOR_BORDER}; 
+                border-radius: 4px; 
+                padding: {GRID_8}px {GRID_8*2}px; 
+                font-weight: 600; 
                 color: {COLOR_TEXT_PRIMARY}; 
             }}
             QPushButton:hover {{ 
-                background-color: rgba(255, 255, 255, 0.1); 
+                background-color: {COLOR_PANEL}; 
                 border-color: {COLOR_ACCENT}; 
             }}
             
             #RenderButton {{ 
-                background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 {COLOR_ACCENT}, stop:1 #0099ff); 
-                color: #000; border: none; font-size: 14px; border-radius: 8px; 
+                background: {COLOR_ACCENT}; 
+                color: {COLOR_BG_DARK}; 
+                border: none; 
+                padding: {GRID_8*1.5}px;
+                font-size: 12px;
+                letter-spacing: 0.5px;
             }}
-            #RenderButton:hover {{ background: #ffffff; box-shadow: 0 0 15px {COLOR_ACCENT}; }}
+            #RenderButton:hover {{ background: #ffffff; }}
             
-            QListWidget {{ background: transparent; border: 1px solid {COLOR_BORDER}; border-radius: 10px; padding: 5px; }}
-            QListWidget::item {{ padding: 10px; border-radius: 6px; margin-bottom: 4px; background: rgba(255,255,255,0.02); }}
-            QListWidget::item:selected {{ background: {COLOR_ACCENT_DIM}; color: {COLOR_ACCENT}; border: 1px solid {COLOR_ACCENT}; }}
+            QListWidget {{ background: transparent; border: none; }}
+            QListWidget::item {{ 
+                padding: {GRID_8}px; 
+                border-radius: 4px; 
+                margin-bottom: 2px;
+                color: {COLOR_TEXT_SECONDARY};
+            }}
+            QListWidget::item:hover {{ background: rgba(255, 255, 255, 0.03); }}
+            QListWidget::item:selected {{ background: {COLOR_ACCENT_DIM}; color: {COLOR_ACCENT}; font-weight: 600; }}
             
-            QComboBox {{ background: {COLOR_BG_LIGHT}; border: 1px solid {COLOR_BORDER}; border-radius: 6px; padding: 6px; }}
-            QSlider::groove:horizontal {{ height: 4px; background: {COLOR_BORDER}; border-radius: 2px; }}
-            QSlider::handle:horizontal {{ background: {COLOR_ACCENT}; width: 16px; height: 16px; margin: -6px 0; border-radius: 8px; }}
+            QComboBox {{ background: {COLOR_BG_LIGHT}; border: 1px solid {COLOR_BORDER}; border-radius: 4px; padding: 4px {GRID_8}px; }}
             
-            QScrollBar:vertical {{ border: none; background: transparent; width: 8px; }}
-            QScrollBar::handle:vertical {{ background: {COLOR_BORDER}; min-height: 20px; border-radius: 4px; }}
+            QSlider::groove:horizontal {{ height: 2px; background: {COLOR_BORDER}; }}
+            QSlider::handle:horizontal {{ background: {COLOR_ACCENT}; width: 12px; height: 12px; margin: -5px 0; border-radius: 6px; }}
             
-            QTextEdit {{ background: rgba(5, 5, 10, 0.6); border: 1px solid {COLOR_BORDER}; border-radius: 10px; color: #a1b0b8; padding: 10px; }}
+            #PreviewSlider::groove:horizontal {{ height: 4px; background: rgba(255,255,255,0.05); border-radius: 2px; }}
+            #PreviewSlider::handle:horizontal {{ background: #ffffff; width: 4px; height: 16px; margin: -6px 0; border-radius: 2px; }}
             
-            QToolButton {{ border: none; padding: 8px; color: {COLOR_TEXT_SECONDARY}; text-align: left; font-weight: bold; }}
-            QToolButton:hover {{ color: {COLOR_ACCENT}; }}
+            QScrollBar:vertical {{ border: none; background: transparent; width: 4px; }}
+            QScrollBar::handle:vertical {{ background: {COLOR_BORDER}; border-radius: 2px; }}
+            
+            QTextEdit {{ background: {COLOR_BG_DARK}; border: 1px solid {COLOR_BORDER}; border-radius: 4px; color: {COLOR_TEXT_SECONDARY}; padding: {GRID_8}px; }}
+            
+            QTabWidget::pane {{ border-top: 1px solid {COLOR_BORDER}; background: {COLOR_PANEL}; }}
+            QTabBar::tab {{ background: transparent; padding: {GRID_8}px {GRID_8*2}px; color: {COLOR_TEXT_SECONDARY}; font-weight: 600; font-size: 10px; }}
+            QTabBar::tab:selected {{ color: {COLOR_ACCENT}; border-bottom: 2px solid {COLOR_ACCENT}; }}
         """)
 
     def import_dialog(self):
