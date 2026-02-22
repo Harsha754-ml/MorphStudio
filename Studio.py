@@ -754,7 +754,7 @@ class SVGStudioWYSIWYG(QMainWindow):
         
         # Left-aligned toolbar
         t_bar = QFrame()
-        t_bar.setStyleSheet(f"background: {COLOR_GLASS}; border: 1px solid {COLOR_BORDER}; border-radius: 16px;")
+        t_bar.setStyleSheet(f"background: {COLOR_PANEL}; border: 1px solid {COLOR_BORDER}; border-radius: 16px;")
         t_bar_layout = QHBoxLayout(t_bar)
         t_bar_layout.setContentsMargins(8, 4, 8, 4)
         t_bar_layout.setSpacing(8)
@@ -784,11 +784,7 @@ class SVGStudioWYSIWYG(QMainWindow):
         self.zoom_lbl.setStyleSheet(f"color: {COLOR_TEXT_SECONDARY}; font-size: 11px; font-weight: bold;")
         tb_layout.addWidget(self.zoom_lbl)
         
-        cb_layout.addWidget(self.toolbar_container)
-        
-        center_layout.addStretch(1)
-        center_layout.addWidget(center_block, alignment=Qt.AlignCenter)
-        center_layout.addStretch(1)
+        center_layout.addWidget(self.toolbar_container)
         
         # 3. Bottom Tabs: Console & Code
         self.bottom_tabs = QTabWidget()
@@ -917,10 +913,10 @@ class SVGStudioWYSIWYG(QMainWindow):
         
         self.stage_section.addLayout(self.stage_form)
 
-        inspector_layout.addWidget(self.trans_section)
-        inspector_layout.addWidget(self.motion_section)
-        inspector_layout.addWidget(self.stage_section)
-        inspector_layout.addStretch() # Push everything up
+        self.inspector_layout.addWidget(self.trans_section)
+        self.inspector_layout.addWidget(self.motion_section)
+        self.inspector_layout.addWidget(self.stage_section)
+        self.inspector_layout.addStretch() # Push everything up
         
         self.main_layout.addWidget(self.inspector_panel)
 
