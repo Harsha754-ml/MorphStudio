@@ -1,35 +1,35 @@
-# 🎬 SVG Studio Pro
+# 🎬 MorphStudio – Vector Motion Engine
 
-### _The Cinematic Motion Design Environment for Manim_
+### _Premium Cinematic Motion Design for Manim_
 
-**SVG Studio Pro** is a high-fidelity visual editor designed to bridge the gap between static SVG assets and dynamic Manim animations. It provides a professional, "Stage-First" workflow for creating complex motion graphics with mathematical precision.
+**MorphStudio** is a high-end visual editor and orchestrator designed to bridge the gap between static SVG assets and dynamic Manim animations. It features a professional **Liquid Glass** aesthetic, emphasizing spatial depth, ambient movement, and mathematical precision.
 
 ---
 
 ## 💎 Premium Features
 
-### 🎞️ Cinematic Canvas
+### 🎞️ Cinematic Liquid Canvas
 
-- **16:9 Aspect Ratio Lock**: Perfectly matches Manim's export dimensions (14.22 x 8.0 units).
-- **Zero-Noise UI**: Technical guides and handles vanish in Preview mode, leaving only your art.
-- **Vignette & Neutral Framing**: Focus on the action with a dimmed stage-surround that mimics professional monitors.
+- **Liquid Glass Interface**: Translucent, layered panels with simulated backdrop blur and macOS-style 16px corners.
+- **Ambient Atmosphere**: A deep blue-black background with slow-moving, multi-layered radial gradients (Indigo, Purple, Cyan).
+- **16:9 Pixel Parity**: Strictly locked to Manim's export dimensions ($14.22 \times 8.0$ units) with a uniform $56.25 \text{px/unit}$ scale.
+- **Zero-Noise Viewport**: Technical guides and handles vanish in Preview mode, leaving only a pure cinematic monitor.
 
-### 🔄 State-Based Motion
+### 🔄 State-Based Motion Engine
 
-- **Deterministic Transforms**: Every object is defined by an explicit `Initial State` and `Final State`.
-- **Interactive Path Handles**: Drag the source handle to define where an object comes from, and move the object to define where it ends.
-- **Real-time Scrubbing**: Preview complex eases and paths instantly with the precision timeline.
+- **Deterministic Transforms**: Define objects via explicit `Initial State` and `Final State`.
+- **Interactive Path Handles**: Real-time manipulation of motion arcs and pivot points.
+- **Interpolation Accuracy**: Preview complex eases and paths instantly with a high-fidelity timeline.
 
-### 🎭 SVG Morph Engine
+### 🎭 Smart SVG Morphing
 
 - **Path-to-Path Interpolation**: Seamlessly transform SVG A into SVG B.
-- **Manim Integration**: Exports clean `ReplacementTransform` code for high-quality production renders.
+- **Code Orchestration**: Generates production-ready Manim code (`ReplacementTransform`, `ReplacementTransform`, etc.).
 
-### 🛠️ Contextual Workspace
+### 🛠️ Professional Workspace
 
-- **TRANSFORM Mode**: Adjust scale, rotation, and final positions with bounding box feedback.
-- **MOTION Mode**: Access motion paths, easing curves, and timing controls.
-- **PREVIEW Mode**: A distraction-free cinematic monitor to check your composition.
+- **PROPERTIES Panel**: Rebuilt with a clean hierarchy, 24px internal padding, and structured sections (Transform, Motion, Stage).
+- **SMART TOOLS**: One-click "Center to Stage" and "Distribute Horizontally" utilities.
 
 ---
 
@@ -38,7 +38,7 @@
 ### Prerequisites
 
 - Python 3.10+
-- [Manim](https://docs.manim.community/en/stable/installation.html) (for rendering)
+- [Manim Community Edition](https://docs.manim.community/en/stable/installation.html)
 - PySide6
 
 ### Installation
@@ -57,26 +57,26 @@ python Studio.py
 
 ## 🛠️ Technology Stack
 
-- **Framework**: PySide6 (Qt for Python)
-- **Rendering Core**: Manim (Mathematical Animation Engine)
-- **SVG Logic**: QSvgRenderer
-- **UI System**: Custom 8px Grid with Glassmorphic design tokens
+- **Framework**: PySide6 (Qt for Python 6.7+)
+- **Rendering Core**: Manim Community Edition
+- **SVG Logic**: QSvgRenderer with high-precision bounding box calculation
+- **UI System**: **Liquid Glass** (Custom CSS layering with backdrop blur simulation)
 
 ---
 
 ## 📐 Architecture
 
-SVG Studio Pro follows a deterministic data-driven architecture:
+MorphStudio follows a deterministic data-driven architecture:
 
-1.  **Canvas Layer**: Manages coordinate mapping between QGraphicsScene (Pixels) and Manim (Units).
-2.  **Interpolation Layer**: Calculates the state of every object at time `t` based on custom ease functions.
-3.  **Export Layer**: Generates clean, human-readable Python code compatible with the latest Manim community versions.
+1.  **Coordinate Layer**: Maps QGraphicsScene pixels to Manim units with zero-drift precision.
+2.  **Atmosphere Layer**: Manages ambient background shaders for a premium creative feel.
+3.  **Export Layer**: Generates human-readable, PEP-8 compliant Manim scene code.
 
 ---
 
 ## 🎨 Design Philosophy
 
-Every pixel stays on the **8px Grid**. The UI emphasizes spatial hierarchy, high contrast for readability, and interactive micro-animations to ensure a premium user experience.
+Every element stays on the **8px Grid**. The UI emphasizes spatial hierarchy, "Breathable" 24px padding, and interactive glass depth to ensure a professional production environment.
 
 ---
 
