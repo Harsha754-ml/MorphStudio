@@ -260,11 +260,13 @@ class DraggableSVGItem(QGraphicsObject):
         self.update_appearance()
 
     def boundingRect(self):
-        # FIX: Include handle and add padding for strokes
+        # The bounding box must encompass the body at both its final (origin) 
+        # and its initial (handle offset) positions.
         sx, sy = self.handle.pos().x(), self.handle.pos().y()
-        rect = self._rect
-        # Create a rect that contains (0,0,w,h) and the handle pos
-        br = rect.united(QRectF(sx-10, sy-10, 20, 20))
+        body_at_final = self._rect
+        body_at_initial = self._rect.translated(sx, sy)
+        
+        br = body_at_final.united(body_at_initial).united(QRectF(sx-10, sy-10, 20, 20))
         return br.adjusted(-20, -20, 20, 20)
 
     def update_pen(self):
