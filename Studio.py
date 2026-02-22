@@ -346,9 +346,15 @@ class DraggableSVGItem(QGraphicsObject):
         tx = (state["x"] / (MANIM_WIDTH / 2.0)) * 400.0
         ty = (-state["y"] / (MANIM_HEIGHT / 2.0)) * 225.0
         
+        # Base Position (the item's actual pos() in the scene)
+        final = self.asset["final_state"]
+        fx = (final["x"] / (MANIM_WIDTH / 2.0)) * 400.0
+        fy = (-final["y"] / (MANIM_HEIGHT / 2.0)) * 225.0
+        
         # Save Painter for Body
         painter.save()
-        painter.translate(tx, ty)
+        # Translate RELATIVE to the item's origin (pos())
+        painter.translate(tx - fx, ty - fy)
         painter.rotate(state["rotation"])
         painter.scale(state["scale"], state["scale"])
         painter.setOpacity(state["opacity"])
@@ -559,6 +565,10 @@ class SVGStudioWYSIWYG(QMainWindow):
         self.setWindowTitle("SVG STUDIO PRO - KINETIC ORCHESTRATOR")
         self.resize(1500, 950)
         
+        # Explicit Font Fix for Warnings
+        app_font = QFont(FONT_MAIN, 10)
+        self.setFont(app_font)
+        
         self.assets = []
         self.canvas_items = [] 
         self.selected_index = -1
@@ -569,18 +579,37 @@ class SVGStudioWYSIWYG(QMainWindow):
         self.apply_styles()
         self.initializing = False
         
-        # --- STARTUP ANIMATION (BLOOM) ---
+        # --- RANDOMIZED STARTUP ANIMATIONS ---
+        import random
+        anim_type = random.choice(["BLOOM", "SLIDE", "BOUNCE"])
+        
         self.setWindowOpacity(0.0)
         self._bloom = QPropertyAnimation(self, b"windowOpacity")
-        self._bloom.setDuration(1200)
+        self._bloom.setDuration(1000)
         self._bloom.setStartValue(0.0)
         self._bloom.setEndValue(1.0)
-        self._bloom.setEasingCurve(QEasingCurve.InOutQuart)
+        self._bloom.setEasingCurve(QEasingCurve.OutCubic)
         self._bloom.start()
         
-        # Subtle scale entrance for the central widget
-        central_widget = self.centralWidget()
-        self._scale_anim = QPropertyAnimation(central_widget, b"scale") # Assuming we add a scale property to QWidget or use a wrapper
+        if anim_type == "SLIDE":
+            self.central_anim = QPropertyAnimation(self.centralWidget(), b"pos")
+            start_pos = self.centralWidget().pos()
+            self.centralWidget().move(start_pos.x(), start_pos.y() + 50)
+            self.central_anim.setDuration(800)
+            self.central_anim.setStartValue(QPointF(start_pos.x(), start_pos.y() + 50))
+            self.central_anim.setEndValue(start_pos)
+            self.central_anim.setEasingCurve(QEasingCurve.OutExpo)
+            self.central_anim.start()
+        elif anim_type == "BOUNCE":
+            self.central_anim = QPropertyAnimation(self.centralWidget(), b"pos")
+            start_pos = self.centralWidget().pos()
+            self.centralWidget().move(start_pos.x(), start_pos.y() - 100)
+            self.central_anim.setDuration(1200)
+            self.central_anim.setStartValue(QPointF(start_pos.x(), start_pos.y() - 100))
+            self.central_anim.setEndValue(start_pos)
+            self.central_anim.setEasingCurve(QEasingCurve.OutBounce)
+            self.central_anim.start()
+        # Default BLOOM is just the opacity
         
         # Animation loop for path dash offset
         from PySide6.QtCore import QTimer
