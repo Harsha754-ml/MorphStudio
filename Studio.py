@@ -69,6 +69,7 @@ class AnimatedButton(QPushButton):
 
     def paintEvent(self, event):
         painter = QPainter(self)
+        painter.save()
         painter.setRenderHint(QPainter.Antialiasing)
         
         # Apply scaling from center
@@ -92,8 +93,16 @@ class AnimatedButton(QPushButton):
         
         # Text
         painter.setPen(QColor("#000000" if self.is_accent else COLOR_TEXT_PRIMARY))
-        painter.setFont(self.font())
+        
+        # Font point size safety
+        font = self.font()
+        size = font.pointSize()
+        size = max(8, int(size))
+        font.setPointSize(size)
+        painter.setFont(font)
+        
         painter.drawText(self.rect(), Qt.AlignCenter, self.text())
+        painter.restore()
         painter.end()
 
 class LayerWidget(QWidget):
@@ -208,10 +217,12 @@ class StartHandle(QGraphicsRectItem):
         active_tab = self.main_item.app.get_active_inspector_section()
         if is_preview or active_tab != "MOTION": return
         
+        painter.save()
         # Draw pivot point
         painter.setBrush(QColor(COLOR_ACCENT))
         painter.setPen(Qt.NoPen)
         painter.drawEllipse(-3, -3, 6, 6)
+        painter.restore()
 
 class DraggableSVGItem(QGraphicsObject):
     """A visual representation of an SVG asset on the canvas."""
@@ -321,6 +332,7 @@ class DraggableSVGItem(QGraphicsObject):
         return super().itemChange(change, value)
 
     def paint(self, painter, option, widget):
+        painter.save()
         painter.setRenderHint(QPainter.Antialiasing, True)
         painter.setRenderHint(QPainter.SmoothPixmapTransform, True)
         
@@ -343,6 +355,7 @@ class DraggableSVGItem(QGraphicsObject):
             painter.scale(state["scale"], state["scale"])
             painter.setOpacity(state["opacity"])
             self.renderer.render(painter, self._rect)
+            painter.restore()
             painter.restore()
             return
 
@@ -399,7 +412,10 @@ class DraggableSVGItem(QGraphicsObject):
             # Path Logic (Dashed line with arrow)
             gradient = QLinearGradient(isx, isy, fsx, fsy)
             gradient.setColorAt(0, QColor(COLOR_ACCENT))
-            gradient.setColorAt(1, QColor(COLOR_ACCENT, 50))
+            
+            color = QColor(COLOR_ACCENT)
+            color.setAlpha(50)
+            gradient.setColorAt(1, color)
             
             pen = QPen(QBrush(gradient), 1.5, Qt.PenStyle.DashLine)
             pen.setDashOffset(self.app.animation_offset)
@@ -433,6 +449,7 @@ class DraggableSVGItem(QGraphicsObject):
                 painter.setOpacity(0.1 + (t * 0.15))
                 self.renderer.render(painter, self._rect)
                 painter.restore()
+        painter.restore()
 
     def keyPressEvent(self, event):
         if event.key() == Qt.Key_Delete or event.key() == Qt.Key_Backspace:
