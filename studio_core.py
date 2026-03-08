@@ -36,26 +36,24 @@ class StudioScene(Scene):
             "SlowOut": rate_functions.rush_from,
         }}
         
+        def normalize(obj, state):
+            max_dim = max(obj.width, obj.height)
+            if max_dim > 0:
+                obj.scale(1.7777777 / max_dim)
+            obj.scale(state.get("scale", 1.0))
+            obj.rotate(state.get("rotation", 0) * DEGREES)
+            obj.move_to([state.get("x", 0), state.get("y", 0), 0])
+            obj.set_opacity(state.get("opacity", 1.0))
+
         current_time = 0
         last_asset_end = 0
-        
+
         for asset in assets:
             initial = asset["initial_state"]
             final = asset["final_state"]
-            
+
             # 1. Setup Source Object
             svg_a = SVGMobject(initial.get("svg") or asset["path"], fill_opacity=1, stroke_width=1)
-            
-            # Normalize Scaling
-            def normalize(obj, state):
-                max_dim = max(obj.width, obj.height)
-                if max_dim > 0:
-                    obj.scale(1.7777777 / max_dim)
-                obj.scale(state.get("scale", 1.0))
-                obj.rotate(state.get("rotation", 0) * DEGREES)
-                obj.move_to([state.get("x", 0), state.get("y", 0), 0])
-                obj.set_opacity(state.get("opacity", 1.0))
-            
             normalize(svg_a, initial)
             
             # Timing
@@ -93,7 +91,18 @@ class StudioScene(Scene):
             elif anim_type == "Draw":
                 self.play(Create(svg_a), run_time=duration/2)
                 self.play(svg_a.animate.move_to([final["x"], final["y"], 0]), run_time=duration/2, rate_func=easing_func)
-            
+
+            elif anim_type == "FlyIn":
+                # Start from off-screen left; initial_state x/y used as the fly-from origin
+                fly_from_x = initial.get("x", final["x"] - 8)
+                svg_a.move_to([fly_from_x, initial.get("y", final["y"]), 0])
+                self.play(FadeIn(svg_a), run_time=0.01)
+                self.play(svg_a.animate.move_to([final["x"], final["y"], 0]), run_time=duration, rate_func=easing_func)
+
+            elif anim_type == "PopIn":
+                svg_a.scale(0.01)
+                self.play(svg_a.animate.scale(100), run_time=duration, rate_func=rate_functions.ease_out_bounce)
+
             else:
                 self.add(svg_a)
                 
